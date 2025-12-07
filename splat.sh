@@ -6,8 +6,7 @@ cp $(dirname $0)/lint "$D/.github"
 
 pushd "$D"
 if [ -f "package.json" ]; then
-npm install -D rolldown
+npm install -D rolldown zshy typescript
 fi
-git add -A
-git commit -m "Update"
-git push
+popd
+sh $(dirname $0)/update_commit.sh "$D"
