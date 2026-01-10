@@ -1,13 +1,14 @@
 # scripts
 
 ## Description
-Project scripts
+Collection of utility scripts for CI/CD, linting, and repo management.
 
 ## Goals
-- [ ] Add project goals
+- [ ] Automate repository tasks
+- [ ] Maintain CI/CD workflows
 
 ## Progress
-- [ ] Initial setup
+- [ ] Scripts present for linting, prompting, etc.
 
 ---
 *AI assisted*
