@@ -20,8 +20,11 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '20'
+    - name: Setup Java JDK
+      uses: actions/setup-java@v5.1.0
     - name: Run tests
       run: |
         cat Cargo.toml > /dev/null && cargo test --all --workspace --locked
         cat package.json > /dev/null && npm install
         cat package.json > /dev/null && npm test --workspaces
+        cat build.gradle > /dev/null && ./gradlew test
