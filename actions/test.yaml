@@ -1,0 +1,27 @@
+---
+name: Test
+
+on: # yamllint disable-line rule:truthy
+  push: null
+  pull_request: null
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install node
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+    - name: Run tests
+      run: |
+        cat Cargo.toml > /dev/null && cargo test --all --workspace --locked
+        cat package.json > /dev/null && npm install
+        cat package.json > /dev/null && npm test --workspaces
