@@ -165,7 +165,7 @@ func buildPackageJSON(name, desc string, members []string) string {
 	b, err := json.MarshalIndent(pkgObj, "", "")
 	if err != nil {
 		// fallback to simple string
-		return fmt.Sprintf("{\"name\":\"%s\",\"description\":\"%s\",\"workspaces\":[],\"type\":\"module\",\"devDependencies\":{\"zshy\":\"^0.7.0\"}}", pkgName, desc)
+		panic(err)
 	}
 	return string(b)
 }
