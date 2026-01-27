@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -129,7 +130,6 @@ func buildRootCargo(members []string, workspacePrivate bool, license, desc strin
 }
 
 func buildPackageJSON(name, desc string, members []string) string {
-	// mimic ../pixie/package.json structure
 	pkgName := fmt.Sprintf("@portal-solutions/%s", name)
 	if !strings.HasPrefix(name, "portal-") {
 		// sanitize/normalize name to be npm-friendly: lowercase, replace spaces
@@ -138,38 +138,36 @@ func buildPackageJSON(name, desc string, members []string) string {
 	if desc == "" {
 		desc = "Generated workspace"
 	}
-	// build a simple JSON object similar to pixie
-	workspaces := "[]"
-	if len(members) > 0 {
-		// include crates and packages as workspaces if present
-		ws := []string{}
-		for _, m := range members {
-			// only top-level workspace globs
-			if strings.HasPrefix(m, "crates/") {
-				ws = append(ws, "crates/*")
-				break
-			}
-		}
-		for _, m := range members {
-			if strings.HasPrefix(m, "packages/") {
-				ws = append(ws, "packages/*")
-				break
-			}
-		}
-		if len(ws) > 0 {
-			workspaces = fmt.Sprintf("[%s]", strings.Join(mapQuote(ws), ","))
-		}
-	}
-	return fmt.Sprintf("{\"name\":\"%s\",\"description\":\"%s\",\"workspaces\":%s,\"type\":\"module\",\"devDependencies\":{\"zshy\":\"^0.7.0\"}}",
-		pkgName, desc, workspaces)
-}
 
-func mapQuote(ss []string) []string {
-	out := make([]string, len(ss))
-	for i, s := range ss {
-		out[i] = fmt.Sprintf("\"%s\"", s)
+	ws := []string{}
+	for _, m := range members {
+		if strings.HasPrefix(m, "crates/") {
+			ws = append(ws, "crates/*")
+			break
+		}
 	}
-	return out
+	for _, m := range members {
+		if strings.HasPrefix(m, "packages/") {
+			ws = append(ws, "packages/*")
+			break
+		}
+	}
+
+	pkgObj := map[string]interface{}{
+		"name":        pkgName,
+		"description": desc,
+		"workspaces":  ws,
+		"type":        "module",
+		"devDependencies": map[string]string{
+			"zshy": "^0.7.0",
+		},
+	}
+	b, err := json.MarshalIndent(pkgObj, "", "")
+	if err != nil {
+		// fallback to simple string
+		return fmt.Sprintf("{\"name\":\"%s\",\"description\":\"%s\",\"workspaces\":[],\"type\":\"module\",\"devDependencies\":{\"zshy\":\"^0.7.0\"}}", pkgName, desc)
+	}
+	return string(b)
 }
 
 func writeFile(path, content string) {
