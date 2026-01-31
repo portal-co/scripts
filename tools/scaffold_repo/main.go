@@ -15,10 +15,6 @@ func main() {
 	workspacePrivate := flag.Bool("workspace-private", false, "If set, set [workspace.package].publish = false in root Cargo.toml")
 	license := flag.String("license", "", "License string to set in generated Cargo.toml files (e.g. MIT OR Apache-2.0). If empty, license field is omitted")
 	desc := flag.String("description", "", "Description to put in workspace.package description (required)")
-	privateCrates := flag.String("private-crates", "", "Comma-separated crate names to list under crates/ as private (publish = false)")
-	publicCrates := flag.String("public-crates", "", "Comma-separated crate names to list under crates/ as public")
-	privatePackages := flag.String("private-packages", "", "Comma-separated package names to list under packages/ as private (publish = false)")
-	publicPackages := flag.String("public-packages", "", "Comma-separated package names to list under packages/ as public")
 	flag.Parse()
 
 	// Validate required fields
@@ -41,11 +37,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	pc := splitNames(*privateCrates)
-	uc := splitNames(*publicCrates)
-	pp := splitNames(*privatePackages)
-	up := splitNames(*publicPackages)
-
 	members := []string{}
 
 	// Ensure crates/ and packages/ exist and create marker files so Git tracks them
@@ -58,31 +49,7 @@ func main() {
 	writeFile(filepath.Join(packagesDir, "_"), "# marker to allow git track empty packages dir\n")
 
 	// Create directories for each named crate/package but only add a marker `_` file inside
-	for _, c := range pc {
-		p := filepath.Join(cratesDir, c)
-		os.MkdirAll(p, 0755)
-		writeFile(filepath.Join(p, "_"), "# placeholder for crate to inherit workspace settings\n")
-		members = append(members, filepath.ToSlash(filepath.Join("crates", c)))
-	}
-	for _, c := range uc {
-		p := filepath.Join(cratesDir, c)
-		os.MkdirAll(p, 0755)
-		writeFile(filepath.Join(p, "_"), "# placeholder for crate to inherit workspace settings\n")
-		members = append(members, filepath.ToSlash(filepath.Join("crates", c)))
-	}
-
-	for _, p := range pp {
-		pdir := filepath.Join(packagesDir, p)
-		os.MkdirAll(pdir, 0755)
-		writeFile(filepath.Join(pdir, "_"), "# placeholder for package to inherit workspace settings\n")
-		members = append(members, filepath.ToSlash(filepath.Join("packages", p)))
-	}
-	for _, p := range up {
-		pdir := filepath.Join(packagesDir, p)
-		os.MkdirAll(pdir, 0755)
-		writeFile(filepath.Join(pdir, "_"), "# placeholder for package to inherit workspace settings\n")
-		members = append(members, filepath.ToSlash(filepath.Join("packages", p)))
-	}
+	// Note: crates/packages will be added after scaffold finishes.
 
 	// Write root Cargo.toml
 	rootCargo := buildRootCargo(members, *workspacePrivate, *license, *desc)
