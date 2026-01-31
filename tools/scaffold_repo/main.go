@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -15,6 +16,7 @@ func main() {
 	workspacePrivate := flag.Bool("workspace-private", false, "If set, set [workspace.package].publish = false in root Cargo.toml")
 	license := flag.String("license", "", "License string to set in generated Cargo.toml files (e.g. MIT OR Apache-2.0). If empty, license field is omitted")
 	desc := flag.String("description", "", "Description to put in workspace.package description (required)")
+	gitInit := flag.Bool("git-init", true, "Initialize a git repo and commit generated files; set to false to opt out")
 	flag.Parse()
 
 	// Validate required fields
@@ -66,6 +68,21 @@ func main() {
 	// .gitignore
 	gitignore := buildGitignore()
 	writeFile(filepath.Join(target, ".gitignore"), gitignore)
+
+	// Optionally initialize git and commit scaffolded files
+	if *gitInit {
+		if _, err := exec.LookPath("git"); err != nil {
+			fmt.Fprintf(os.Stderr, "git not found; skipping git init\n")
+		} else {
+			if err := runCmd(target, "git", "init"); err != nil {
+				fmt.Fprintf(os.Stderr, "git init failed: %v\n", err)
+			} else if err := runCmd(target, "git", "add", "."); err != nil {
+				fmt.Fprintf(os.Stderr, "git add failed: %v\n", err)
+			} else if err := runCmd(target, "git", "commit", "-m", "Initial scaffold"); err != nil {
+				fmt.Fprintf(os.Stderr, "git commit failed: %v\n", err)
+			}
+		}
+	}
 
 	fmt.Printf("Scaffolded repository at %s\n", target)
 }
@@ -205,4 +222,17 @@ func writeFile(path, content string) {
 		fmt.Fprintf(os.Stderr, "failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
+}
+
+func runCmd(dir, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		fmt.Fprintf(os.Stderr, "%s", string(out))
+	}
+	if err != nil {
+		return fmt.Errorf("%v", err)
+	}
+	return nil
 }
