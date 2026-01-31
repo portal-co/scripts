@@ -10,16 +10,30 @@ import (
 )
 
 func main() {
-	name := flag.String("name", "myrepo", "Repository name / directory to create")
-	out := flag.String("out", ".", "Parent directory to create the repo in")
+	name := flag.String("name", "", "Repository name / directory to create (required)")
+	out := flag.String("out", "", "Parent directory to create the repo in (required)")
 	workspacePrivate := flag.Bool("workspace-private", false, "If set, set [workspace.package].publish = false in root Cargo.toml")
 	license := flag.String("license", "", "License string to set in generated Cargo.toml files (e.g. MIT OR Apache-2.0). If empty, license field is omitted")
-	desc := flag.String("description", "", "Description to put in workspace.package description")
+	desc := flag.String("description", "", "Description to put in workspace.package description (required)")
 	privateCrates := flag.String("private-crates", "", "Comma-separated crate names to list under crates/ as private (publish = false)")
 	publicCrates := flag.String("public-crates", "", "Comma-separated crate names to list under crates/ as public")
 	privatePackages := flag.String("private-packages", "", "Comma-separated package names to list under packages/ as private (publish = false)")
 	publicPackages := flag.String("public-packages", "", "Comma-separated package names to list under packages/ as public")
 	flag.Parse()
+
+	// Validate required fields
+	if *name == "" {
+		fmt.Fprintf(os.Stderr, "error: -name is required\n")
+		os.Exit(1)
+	}
+	if *out == "" {
+		fmt.Fprintf(os.Stderr, "error: -out is required\n")
+		os.Exit(1)
+	}
+	if *desc == "" {
+		fmt.Fprintf(os.Stderr, "error: -description is required\n")
+		os.Exit(1)
+	}
 
 	target := filepath.Join(*out, *name)
 	if err := os.MkdirAll(target, 0755); err != nil {
@@ -81,6 +95,10 @@ func main() {
 	// README
 	readme := fmt.Sprintf("# %s\n\nGenerated repository.\n", *name)
 	writeFile(filepath.Join(target, "README.md"), readme)
+
+	// .gitignore
+	gitignore := buildGitignore()
+	writeFile(filepath.Join(target, ".gitignore"), gitignore)
 
 	fmt.Printf("Scaffolded repository at %s\n", target)
 }
@@ -166,8 +184,47 @@ func buildPackageJSON(name, desc string, members []string) string {
 	if err != nil {
 		// fallback to simple string
 		panic(err)
+
 	}
+
 	return string(b)
+}
+
+func buildGitignore() string {
+	return `# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build outputs
+dist/
+build/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+`
 }
 
 func writeFile(path, content string) {
