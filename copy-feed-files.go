@@ -1,40 +1,33 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-)
 
-type GitHubFile struct {
-	Name        string `json:"name"`
-	Path        string `json:"path"`
-	Type        string `json:"type"`
-	DownloadURL string `json:"download_url"`
-}
+	"github.com/portal-co/scripts/pkg/repoutils"
+)
 
 func main() {
 	// Get current repo name
-	repoName, err := getCurrentRepoName()
+	repoName, err := repoutils.GetCurrentRepoName()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting repo name: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Get organization
-	org, err := getOrganization()
+	org, err := repoutils.GetOrganization()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting organization: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Get repository root
-	repoRoot, err := getRepoRoot()
+	repoRoot, err := repoutils.GetRepoRoot()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting repo root: %v\n", err)
 		os.Exit(1)
@@ -43,7 +36,7 @@ func main() {
 	fmt.Printf("Searching for *%s.feed-out.md files in %s organization...\n", repoName, org)
 
 	// Get all repos in the organization
-	repos, err := getOrgRepos(org)
+	repos, err := repoutils.GetOrgRepos(org, 1000)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting repos: %v\n", err)
 		os.Exit(1)
@@ -72,55 +65,11 @@ func main() {
 	fmt.Printf("\nCopied %d feed file(s)\n", copiedCount)
 }
 
-func getCurrentRepoName() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	repoPath := strings.TrimSpace(string(output))
-	return filepath.Base(repoPath), nil
-}
-
-func getOrganization() (string, error) {
-	cmd := exec.Command("gh", "repo", "view", "--json", "owner", "--jq", ".owner.login")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func getRepoRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func getOrgRepos(org string) ([]string, error) {
-	cmd := exec.Command("gh", "repo", "list", org, "--limit", "1000", "--json", "name", "--jq", ".[].name")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var repos []string
-	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
-		if line != "" {
-			repos = append(repos, line)
-		}
-	}
-	return repos, nil
-}
-
-func searchFilesInRepo(org, repo, suffix string) ([]GitHubFile, error) {
-	var allFiles []GitHubFile
+func searchFilesInRepo(org, repo, suffix string) ([]repoutils.GitHubFile, error) {
+	var allFiles []repoutils.GitHubFile
 
 	// Search recursively through the repository
-	files, err := listRepoContents(org, repo, "")
+	files, err := repoutils.ListRepoContents(org, repo, "")
 	if err != nil {
 		return nil, err
 	}
@@ -134,38 +83,7 @@ func searchFilesInRepo(org, repo, suffix string) ([]GitHubFile, error) {
 	return allFiles, nil
 }
 
-func listRepoContents(org, repo, path string) ([]GitHubFile, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", org, repo, path)
-
-	cmd := exec.Command("gh", "api", url, "--paginate")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-
-	var files []GitHubFile
-	if err := json.Unmarshal(output, &files); err != nil {
-		return nil, err
-	}
-
-	var allFiles []GitHubFile
-	for _, file := range files {
-		if file.Type == "dir" {
-			// Recursively search directories
-			subFiles, err := listRepoContents(org, repo, file.Path)
-			if err != nil {
-				continue // Skip directories we can't access
-			}
-			allFiles = append(allFiles, subFiles...)
-		} else {
-			allFiles = append(allFiles, file)
-		}
-	}
-
-	return allFiles, nil
-}
-
-func copyFeedFile(file GitHubFile, repoRoot, repoName string) error {
+func copyFeedFile(file repoutils.GitHubFile, repoRoot, repoName string) error {
 	// Download file content
 	content, err := downloadFile(file.DownloadURL)
 	if err != nil {

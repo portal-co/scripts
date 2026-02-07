@@ -5,9 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/portal-co/scripts/pkg/repoutils"
 )
 
 func main() {
@@ -17,7 +18,16 @@ func main() {
 	license := flag.String("license", "", "License string to set in generated Cargo.toml files (e.g. MIT OR Apache-2.0). If empty, license field is omitted")
 	desc := flag.String("description", "", "Description to put in workspace.package description (required)")
 	gitInit := flag.Bool("git-init", true, "Initialize a git repo and commit generated files; set to false to opt out")
+	update := flag.Bool("update", false, "Update an existing repository with new scaffolding features")
 	flag.Parse()
+
+	if *update {
+		if err := updateExistingRepo(); err != nil {
+			fmt.Fprintf(os.Stderr, "error updating repo: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Validate required fields
 	if *name == "" {
@@ -71,20 +81,88 @@ func main() {
 
 	// Optionally initialize git and commit scaffolded files
 	if *gitInit {
-		if _, err := exec.LookPath("git"); err != nil {
+		if _, err := lookPath("git"); err != nil {
 			fmt.Fprintf(os.Stderr, "git not found; skipping git init\n")
 		} else {
-			if err := runCmd(target, "git", "init"); err != nil {
+			if err := repoutils.RunCmd(target, "git", "init"); err != nil {
 				fmt.Fprintf(os.Stderr, "git init failed: %v\n", err)
-			} else if err := runCmd(target, "git", "add", "."); err != nil {
+			} else if err := repoutils.RunCmd(target, "git", "add", "."); err != nil {
 				fmt.Fprintf(os.Stderr, "git add failed: %v\n", err)
-			} else if err := runCmd(target, "git", "commit", "-m", "Initial scaffold"); err != nil {
+			} else if err := repoutils.RunCmd(target, "git", "commit", "-m", "Initial scaffold"); err != nil {
 				fmt.Fprintf(os.Stderr, "git commit failed: %v\n", err)
 			}
 		}
 	}
 
 	fmt.Printf("Scaffolded repository at %s\n", target)
+}
+
+func updateExistingRepo() error {
+	repoRoot, err := repoutils.GetRepoRoot()
+	if err != nil {
+		return fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	fmt.Printf("Updating repository at %s\n", repoRoot)
+
+	// Check for missing directories and create them
+	cratesDir := filepath.Join(repoRoot, "crates")
+	packagesDir := filepath.Join(repoRoot, "packages")
+	
+	if _, err := os.Stat(cratesDir); os.IsNotExist(err) {
+		fmt.Println("Creating crates/ directory...")
+		os.MkdirAll(cratesDir, 0755)
+		writeFile(filepath.Join(cratesDir, "_"), "# marker to allow git track empty crates dir\n")
+	}
+	
+	if _, err := os.Stat(packagesDir); os.IsNotExist(err) {
+		fmt.Println("Creating packages/ directory...")
+		os.MkdirAll(packagesDir, 0755)
+		writeFile(filepath.Join(packagesDir, "_"), "# marker to allow git track empty packages dir\n")
+	}
+
+	// Check for .gitignore
+	gitignorePath := filepath.Join(repoRoot, ".gitignore")
+	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+		fmt.Println("Creating .gitignore...")
+		writeFile(gitignorePath, buildGitignore())
+	} else {
+		fmt.Println(".gitignore already exists, skipping...")
+	}
+
+	// Check for Cargo.toml workspace structure
+	cargoPath := filepath.Join(repoRoot, "Cargo.toml")
+	if _, err := os.Stat(cargoPath); os.IsNotExist(err) {
+		fmt.Println("No Cargo.toml found. Creating basic workspace Cargo.toml...")
+		repoName, _ := repoutils.GetCurrentRepoName()
+		rootCargo := buildRootCargo([]string{}, false, "", fmt.Sprintf("Workspace for %s", repoName))
+		writeFile(cargoPath, rootCargo)
+	} else {
+		fmt.Println("Cargo.toml exists, skipping...")
+	}
+
+	// Check for package.json
+	pkgPath := filepath.Join(repoRoot, "package.json")
+	if _, err := os.Stat(pkgPath); os.IsNotExist(err) {
+		fmt.Println("No package.json found. Creating basic workspace package.json...")
+		repoName, _ := repoutils.GetCurrentRepoName()
+		pkg := buildPackageJSON(repoName, fmt.Sprintf("Workspace for %s", repoName), []string{})
+		writeFile(pkgPath, pkg)
+	} else {
+		fmt.Println("package.json exists, skipping...")
+	}
+
+	fmt.Println("\nUpdate complete! Review changes with 'git status'")
+	return nil
+}
+
+func lookPath(cmd string) (string, error) {
+	// Simple wrapper for compatibility
+	path := "/usr/bin/" + cmd
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	}
+	return "", fmt.Errorf("command not found: %s", cmd)
 }
 
 func splitNames(s string) []string {
@@ -222,17 +300,4 @@ func writeFile(path, content string) {
 		fmt.Fprintf(os.Stderr, "failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
-}
-
-func runCmd(dir, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if len(out) > 0 {
-		fmt.Fprintf(os.Stderr, "%s", string(out))
-	}
-	if err != nil {
-		return fmt.Errorf("%v", err)
-	}
-	return nil
 }
