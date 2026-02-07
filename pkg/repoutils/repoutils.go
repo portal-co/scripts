@@ -133,3 +133,44 @@ func RunCmd(dir, name string, args ...string) error {
 	cmd.Dir = dir
 	return cmd.Run()
 }
+
+// ParseOrgRepo parses "org/repo" format or full GitHub URLs
+func ParseOrgRepo(input string) (org, repo string, isURL bool) {
+	// Handle GitHub URLs
+	if IsGitURL(input) {
+		isURL = true
+		// Extract org/repo from URL
+		// Examples:
+		// https://github.com/org/repo.git -> org/repo
+		// git@github.com:org/repo.git -> org/repo
+		input = strings.TrimSuffix(input, ".git")
+		
+		if strings.Contains(input, "github.com/") {
+			parts := strings.Split(input, "github.com/")
+			if len(parts) > 1 {
+				orgRepo := parts[1]
+				parts = strings.SplitN(orgRepo, "/", 2)
+				if len(parts) == 2 {
+					return parts[0], parts[1], isURL
+				}
+			}
+		} else if strings.Contains(input, "github.com:") {
+			parts := strings.Split(input, "github.com:")
+			if len(parts) > 1 {
+				orgRepo := parts[1]
+				parts = strings.SplitN(orgRepo, "/", 2)
+				if len(parts) == 2 {
+					return parts[0], parts[1], isURL
+				}
+			}
+		}
+	}
+	
+	// Handle org/repo format
+	parts := strings.SplitN(input, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1], false
+	}
+	
+	return "", input, false
+}
