@@ -1,0 +1,118 @@
+---
+name: npm Publish
+
+# Runs on every push to main (mirroring the Rust release-plz workflow).
+# Bumps the patch version of every publishable package.json in the repository,
+# commits the change, creates per-package git tags, and publishes to npm.
+#
+# Required secret:  NPM_TOKEN  — an npm automation token with publish rights.
+#
+# Optional inputs (when called as workflow_call):
+#   bump    — semver component to increment (default: patch)
+
+on: # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+  workflow_call:
+    inputs:
+      bump:
+        description: "Semver component to bump (major, minor, patch)"
+        required: false
+        default: patch
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  npm-publish:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'portal-co' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          # persist-credentials so we can push the version-bump commit.
+          persist-credentials: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        # Only install if a package.json is present; failures here are non-fatal
+        # because some repos may have no npm packages.
+        run: |
+          if [ -f package.json ]; then
+            npm install --ignore-scripts
+          fi
+
+      - name: Bump package versions
+        id: bump
+        run: |
+          BUMP="${{ inputs.bump || 'patch' }}"
+          # Capture the list of bumped packages (tab-separated name@ver\tpath lines).
+          # Exit code 2 means nothing to publish — treat as success with no-op.
+          output=$(go run ./tools/bump_npm_version -bump "$BUMP" -add-missing 2>&1) || {
+            code=$?
+            if [ "$code" -eq 2 ]; then
+              echo "No publishable packages found; skipping."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$output" >&2
+            exit "$code"
+          }
+          echo "$output"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          # Store the bump list for the tagging step.
+          # GitHub Actions multiline output via delimiter.
+          {
+            echo "packages<<EOF"
+            echo "$output"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit version bumps
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add '**/package.json' package.json || true
+          git diff --cached --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: bump npm package versions [skip ci]"
+
+      - name: Create per-package git tags
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          echo "${{ steps.bump.outputs.packages }}" | while IFS=$'\t' read -r namever _path; do
+            [ -z "$namever" ] && continue
+            tag="npm/$namever"
+            echo "Tagging: $tag"
+            git tag "$tag" || echo "Tag $tag already exists, skipping"
+          done
+
+      - name: Push commit and tags
+        if: steps.bump.outputs.changed == 'true'
+        run: git push --follow-tags
+
+      - name: Publish to npm
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Publish workspace members if workspaces are defined, otherwise
+          # publish the root package.
+          if node -e "const p=require('./package.json'); process.exit(p.workspaces&&p.workspaces.length?0:1)" 2>/dev/null; then
+            npm publish --workspaces --access public
+          else
+            npm publish --access public
+          fi
