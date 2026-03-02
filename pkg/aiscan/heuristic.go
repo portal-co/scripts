@@ -1,3 +1,4 @@
+// AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 package aiscan
 
 import (
