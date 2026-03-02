@@ -1,0 +1,10 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "env-fake"
+version.workspace = true
+edition.workspace = true
+description = "In-memory fake implementations of the env-traits for use in tests"
+
+[dependencies]
+env-traits = { workspace = true }
+anyhow     = { workspace = true }

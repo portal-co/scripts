@@ -1,2 +1,2 @@
 #!/bin/sh
-ls | go run $(dirname $0)/../forfiles/forfiles.go '^' sh -c "cd ^; git push"
+ls | forfiles '^' sh -c "cd ^; git push"

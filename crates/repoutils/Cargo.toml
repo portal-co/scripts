@@ -1,0 +1,10 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "repoutils"
+version.workspace = true
+edition.workspace = true
+description = "Repository utility helpers: URL parsing, repo name extraction"
+
+[dependencies]
+env-traits = { workspace = true }
+anyhow     = { workspace = true }

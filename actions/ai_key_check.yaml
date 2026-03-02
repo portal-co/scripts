@@ -1,3 +1,4 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 ---
 name: AI Key Check
 
@@ -16,8 +17,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+      - name: Build check-ai-key
+        run: cargo build --release -p check-ai-key
       - name: Check AI submission key in changed files
-        run: go run ./tools/check_ai_key
+        run: ./target/release/check-ai-key
