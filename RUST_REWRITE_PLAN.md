@@ -237,7 +237,12 @@ pub trait GitHubEnv: Send + Sync {
         path: &str,
     ) -> Result<Vec<GitHubFile>>;
 
-    /// Download a single file by its raw download URL.
+    /// Download the content of a file identified by its GitHub raw download URL.
+    /// This is intentionally part of `GitHubEnv` rather than `NetworkEnv`
+    /// because the download is a first-class GitHub operation: it may require
+    /// authentication headers, may be proxied through the `gh` CLI in
+    /// restricted environments, and needs a distinct fake in tests (returning
+    /// pre-seeded content keyed by path rather than by arbitrary URL).
     fn download_file(&self, download_url: &str) -> Result<Vec<u8>>;
 }
 
@@ -558,13 +563,13 @@ This crate is thin; most logic lives in the trait implementations.
 ### 4.11 `crates/agents-zip` (binary)
 
 **Replaces:** `tools/agents_zip/main.go`  
-**Traits consumed:** `FileEnv`, `GitHubEnv`, `NetworkEnv`
+**Traits consumed:** `FileEnv`, `GitHubEnv`
 
 - [ ] For each repo arg: `repoutils::parse_org_repo` → local walk or GitHub
       API listing.
 - [ ] Filter files matching `*agents_.md`.
-- [ ] Download remote files via `NetworkEnv::get`; read local files via
-      `FileEnv::read_file`.
+- [ ] Download remote files via `GitHubEnv::download_file`; read local files
+      via `FileEnv::read_file`.
 - [ ] Build zip in-memory using the `zip` crate; write via `FileEnv::write_file`.
 - [ ] CLI: `-o <output>`, positional `<repo...>`.
 - [ ] Unit tests using fakes: one local repo, one remote repo, missing download.
@@ -589,16 +594,16 @@ This crate is thin; most logic lives in the trait implementations.
 ### 4.13 `crates/copy-feed-files` (binary)
 
 **Replaces:** `copy-feed-files.go`  
-**Traits consumed:** `FileEnv`, `GitEnv`, `GitHubEnv`, `NetworkEnv`
+**Traits consumed:** `FileEnv`, `GitEnv`, `GitHubEnv`
 
 - [ ] Resolve repo name + org via `GitEnv::repo_root` + `GitHubEnv::current_owner`.
 - [ ] List all org repos via `GitHubEnv::list_repos`.
 - [ ] For each repo, `list_contents` recursively and filter by
       `*.{reponame}.feed-out.md` suffix.
-- [ ] Download each match via `NetworkEnv::get`.
+- [ ] Download each match via `GitHubEnv::download_file`.
 - [ ] Transform path: strip feed-out suffix, append `.feed-in.md`, write via
       `FileEnv::write_file`.
-- [ ] Unit tests using all four fakes.
+- [ ] Unit tests using all three fakes.
 
 ---
 
@@ -774,6 +779,6 @@ confidence)` output. This is the most important parity guarantee.
 | Q1 | Should `GitEnv` use `git2` (libgit2) or shell out to the `git` binary? | Start with `ProcessGitEnv` (shell-out) in `env-real` for exact parity. Add `Git2GitEnv` as an opt-in feature later. |
 | Q2 | `forfiles` is currently called with `go run ...` inline in shell scripts on the developer's machine. How do we install the Rust binary so those scripts work locally? | Add a `cargo install --path crates/forfiles` step to the developer setup docs. The `go run` fallback form is kept until the binary is confirmed present. |
 | Q3 | Should `env-traits` use async traits (`async-trait`) or sync-only? | Sync for now (all current operations are fast or spawn child processes). Async can be added to `NetworkEnv` later if batch operations need it. |
-| Q4 | The `copy-feed-files` binary currently uses `gh api` for GitHub calls but `http.Get` for raw downloads. Should both routes go through `NetworkEnv`? | Yes. `GhCliGitHubEnv::list_contents` uses `gh api`; `NetworkEnv::get` handles raw download URLs. This mirrors the Go split faithfully. |
+| Q4 | The `copy-feed-files` binary currently uses `gh api` for GitHub calls but `http.Get` for raw downloads. Should both routes go through `NetworkEnv`? | No. `download_file` belongs on `GitHubEnv`, not `NetworkEnv`. Raw GitHub download URLs require the same authentication and may be proxied through the `gh` CLI in restricted environments; splitting them across two traits would force callers to fake two different mechanisms for what is logically one GitHub operation. `NetworkEnv` is reserved for generic HTTP (i.e. the AI scanner's external endpoint). |
 | Q5 | `bump-npm-version` prints tab-separated output consumed by shell `read`. Should the output format change? | No. The format must remain identical to avoid breaking `npm-publish.yaml`. |
 | Q6 | `scaffold_repo` generates `package.json` via `json.MarshalIndent` with `""` as indent (no indent), producing compact JSON. Should the Rust version match exactly? | Yes — produce identical bytes using `serde_json::to_string` (compact). |
