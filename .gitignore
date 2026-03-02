@@ -5,3 +5,4 @@ target
 copy-feed-files
 check_ai_key
 inject_key
+bump_npm_version
