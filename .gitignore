@@ -3,3 +3,5 @@
 node_modules
 target
 copy-feed-files
+check_ai_key
+inject_key
