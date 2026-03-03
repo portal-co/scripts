@@ -19,9 +19,7 @@ jobs:
           persist-credentials: false
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-      - name: Build check-ai-key
-        run: cargo build --release -p check-ai-key
+      - name: Install check-ai-key
+        run: cargo install --git https://github.com/portal-co/scripts.git check-ai-key
       - name: Check AI submission key in changed files
-        run: ./target/release/check-ai-key
+        run: check-ai-key

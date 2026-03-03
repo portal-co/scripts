@@ -95,17 +95,28 @@ incrementally.
 
 ### Deployment approach
 
-1. **Template variables** — today `splat.sh` does a raw `cp`. Introduce minimal
+1. **`cargo install --git`** — all actions install binaries directly from the
+   scripts repo at runtime:
+   ```yaml
+   - uses: dtolnay/rust-toolchain@stable
+   - run: cargo install --git https://github.com/portal-co/scripts.git check-ai-key
+   - run: check-ai-key
+   ```
+   This eliminates the relative-path problem entirely: managed repos carry no
+   scripts source code and no `./target/release/` references. The binary is on
+   `PATH` after `cargo install` and runs from any working directory.
+
+2. **Template variables** — today `splat.sh` does a raw `cp`. Introduce minimal
    templating (repo name, publish flags, language detection) so a single template
    set serves Rust-only, JS-only, and mixed repos. Use `scaffold_repo`'s existing
    language detection logic.
 
-2. **Conflict detection** — before overwriting a repo's `.github/workflows/`, diff
+3. **Conflict detection** — before overwriting a repo's `.github/workflows/`, diff
    against the template. If the repo has diverged (custom jobs, secrets), emit a
    warning and open a PR instead of force-pushing. AI-assisted conflict resolution
    can generate a merge suggestion (see §6).
 
-3. **New workflow: `deploy-scripts.yaml`** — add to this repo's `actions/`:
+4. **New workflow: `deploy-scripts.yaml`** — add to this repo's `actions/`:
    ```yaml
    on:
      push:
@@ -113,7 +124,7 @@ incrementally.
        paths: ["actions/**", "lint/**"]
      workflow_dispatch:
    ```
-   Calls `go run ./tools/deploy` (new tool, see below) against each managed repo.
+   Calls `portal-scripts deploy` (via `cargo install --git`) against each managed repo.
 
 ---
 
@@ -125,19 +136,19 @@ The `prompts/` submodule (portal-co/prompts) holds the canonical agent docs.
 Target repos need their `AGENTS.md` (or equivalent) to stay in sync without
 manual updates.
 
-### Solution: rice splice markers in AGENTS.md
+### Solution: zip from submodule + rice splice markers in AGENTS.md
 
-Rice's `@path` syntax lets a file "pull" content from another file or URL.
-After adoption, a target repo's `AGENTS.md` would look like:
+The `prompts/` submodule stays in this repo as the canonical source. At deploy
+time (and on `main` pushes), a CI step runs:
 
-```markdown
-<!-- @https://raw.githubusercontent.com/portal-co/prompts/main/main.agents_.md -->
-<!-- [[begin ...]] -->
-... spliced content ...
-<!-- [[end]] -->
+```bash
+cargo run -p agents-zip -- -o agents.zip portal-co/prompts
+# or, once agents-build exists:
+portal-scripts agents-build -o agents.zip
 ```
 
-Or, using rice's zip resolver, against an `agents.zip` bundle built by `agents_zip`.
+This produces a versioned `agents.zip` artifact. Target repos receive the zip
+and use rice's `ZipResolver` to splice content into their `AGENTS.md`.
 
 When the prompts submodule updates:
 1. This repo's CI rebuilds `agents.zip` via `agents_zip portal-co/prompts`.
@@ -267,35 +278,44 @@ and optionally open PRs.
 
 ## 7. Rust Rewrite Coordination
 
-The Go tools (`inject_key`, `check_ai_key`, `scaffold_repo`, `agents_zip`,
-`forfiles`, `copy-feed-files`) are stable and correct. The Rust rewrite should:
+**PR #1 (`feat/rust`) is open and nearly complete** — all 14 crates are
+implemented and 60 tests pass. The rewrite plan lives at
+`RUST_REWRITE_PLAN.md` in the `portal-cold/scripts` working copy.
 
-1. Target `crates/` as the workspace, one crate per tool.
-2. Reuse `pkg/keyguard` and `pkg/aiscan` semantics — translate the Go packages
-   into a `keyguard` Rust crate with the same API surface.
-3. The rice library (already Rust) can be a direct dependency for the new
-   agent-doc management crates.
-4. Publish as binary crates so managed repos can `cargo install` them without
-   this repo being a Go dependency.
-5. Gate the switchover with a `scripts-version` field in `.portal-config.yaml`:
-   `v1` = Go, `v2` = Rust. Deploy workflow picks binaries accordingly.
+Summary of what is in the PR:
+- Infrastructure: `env-traits`, `env-fake`, `env-real`
+- Libraries: `aiscan`, `keyguard`, `pkgjson`, `repoutils`
+- Binaries: `check-ai-key`, `inject-key`, `bump-npm-version`, `forfiles`,
+  `agents-zip`, `scaffold-repo`, `copy-feed-files`
+- CI workflows updated to use Rust binaries (Phases 5, 7 complete)
+- Shell wrappers updated to drop `go run` (Phase 9 complete)
+- Go sources still present pending Phase 10 (delete after CI verified on `main`)
+
+### Components needed for deployment but not yet in PR #1
+
+| Crate | Purpose | Notes |
+|---|---|---|
+| `crates/portal-scripts` | The unified multitool CLI (`portal-scripts deploy/scaffold/rotate/upgrade/fetch-feeds`) | Design in `MULTITOOL_SKETCH.md` |
+| `crates/agents-build` | Build `agents.zip` from local `prompts/` submodule (thin wrapper around `agents-zip`) | Or add `--local` flag to `agents-zip` |
+| `crates/deploy` | Library for push-deploying CI workflows + key + agents zip to a target repo | Used by `portal-scripts deploy` and the `deploy-scripts.yaml` CI workflow |
+| `crates/upgrade` | Conflict detection + remediation for older repos | Used by `portal-scripts upgrade` |
+
+### Versioning / switchover
+
+Gate Go → Rust switchover with `scripts-version` in `.portal-config.yaml`.
+The deploy tool reads this and invokes the appropriate binary path. Default
+is `v2` (Rust) for newly scaffolded repos.
+
+See **`MULTITOOL_SKETCH.md`** for the unified CLI design.
 
 ---
 
-## Open Questions (for human review)
+## Open Questions — Resolved
 
-- **Submodule vs. zip for prompts** — submodule is simpler for active dev; zip
-  is safer for stable downstream consumers. Pick a default or let `.portal-config.yaml`
-  choose.
-- **Push-based vs. pull-based deploy** — feed files (pull) are lower-blast-radius;
-  a deploy workflow that writes to target repos (push) is faster but needs write
-  tokens. Recommend pull for the general case, push opt-in for repos with
-  `auto-update: true`.
-- **AI scan backend for `aiscan`** — today the default is the heuristic scanner.
-  An HTTP backend (`AI_SCAN_ENDPOINT`) is available but requires a service.
-  Is there a canonical endpoint to configure in CI secrets?
-- **Key rotation schedule** — `rotate_key.yaml` has a commented-out cron.
-  Suggest enabling `0 3 * * 1` (weekly) for most repos, per-task for high-frequency
-  agent repos.
-- **License for rice as a deploy dependency** — rice is MPL-2.0; confirm
-  this is acceptable for all managed repos.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Submodule vs. zip for prompts | **Zip built from local `prompts/` submodule.** The submodule stays in this repo for iteration and agent context; `agents-zip` produces the distributable artifact from it. Downstream repos consume the zip, not the submodule. |
+| 2 | Push-based vs. pull-based deploy | **Push for initial deployment; pull thereafter.** First adoption of a repo uses `portal-scripts deploy` (push, needs write token). Ongoing updates use feed files (pull). Repos set `auto-update: pull` in `.portal-config.yaml` after initial setup. |
+| 3 | AI scan backend / `aiscan` HTTP service | **No service exists yet.** The heuristic scanner remains the default. Provisioning a hosted scan endpoint is a TODO; when it exists it will be modelled as a feed document dispatched to the hosting service's repo. CI repos set `AI_SCAN_BACKEND=none` or leave it unset (heuristic) until the service is available. |
+| 4 | Key rotation schedule | **Weekly cron (`0 3 * * 1`) for standard repos; per-task rotation for high-frequency agent repos.** Uncomment the cron in `rotate_key.yaml` as part of the initial deploy step. |
+| 5 | MPL-2.0 license for rice | **Acceptable.** Only the compiled rice binary is invoked; the MPL source is not incorporated into managed repos and not modified, so file-level copyleft does not propagate. |

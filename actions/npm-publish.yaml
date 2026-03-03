@@ -32,11 +32,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-
-      - name: Build bump-npm-version
-        run: cargo build --release -p bump-npm-version
+      - name: Install bump-npm-version
+        run: cargo install --git https://github.com/portal-co/scripts.git bump-npm-version
 
       - uses: actions/setup-node@v4
         with:
@@ -53,7 +50,7 @@ jobs:
         id: bump
         run: |
           BUMP="${{ inputs.bump || 'patch' }}"
-          output=$(./target/release/bump-npm-version --bump "$BUMP" --add-missing 2>&1) || {
+          output=$(bump-npm-version --bump "$BUMP" --add-missing 2>&1) || {
             code=$?
             if [ "$code" -eq 2 ]; then
               echo "No publishable packages found; skipping."

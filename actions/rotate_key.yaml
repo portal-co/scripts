@@ -19,12 +19,10 @@ jobs:
           persist-credentials: true
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
-      - name: Build inject-key
-        run: cargo build --release -p inject-key
+      - name: Install inject-key
+        run: cargo install --git https://github.com/portal-co/scripts.git inject-key
       - name: Rotate AI submission key
-        run: ./target/release/inject-key --rotate
+        run: inject-key --rotate
       - name: Commit rotated key
         run: |
           git config user.name  "github-actions[bot]"
