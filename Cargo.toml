@@ -13,7 +13,6 @@ members = [
   "crates/bump-npm-version",
   "crates/agents-zip",
   "crates/scaffold-repo",
-  "crates/copy-feed-files",
   "crates/forfiles",
 ]
 resolver = "2"

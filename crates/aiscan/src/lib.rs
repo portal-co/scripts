@@ -1,7 +1,7 @@
 // AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
-//! AI-content detection.
+//! AI-content detection and RASP exploitation scanning.
 //!
-//! Three implementations of [`env_traits::AiEnv`]:
+//! **AI-content detection** — three implementations of [`env_traits::AiEnv`]:
 //!
 //! - [`HeuristicAiEnv`] — pure-Rust statistical heuristic, no network.
 //! - [`HttpAiEnv`] — POSTs to an external scoring service via [`NetworkEnv`].
@@ -9,12 +9,24 @@
 //!
 //! Use [`AiEnvConfig`] + [`build_ai_env`] to select an implementation from
 //! environment variables at startup.
+//!
+//! **RASP scanner** — [`RaspScanner`] scans *all* changed files for exploitation
+//! patterns (shell injection, CI workflow tampering, agent context poisoning,
+//! autoexec backdoors, base64 payloads) and returns typed [`Detection`] values.
+//!
+//! **Detection types** — [`Detection`], [`RaspAlert`], [`RaspAlertKind`], and
+//! [`Severity`] are the shared result types consumed by `check-ai-key`.
+
+pub mod detection;
+pub mod rasp;
 
 mod heuristic;
 mod http;
 
+pub use detection::{Detection, RaspAlert, RaspAlertKind, Severity};
 pub use heuristic::HeuristicAiEnv;
 pub use http::HttpAiEnv;
+pub use rasp::RaspScanner;
 
 use anyhow::{anyhow, Result};
 use env_traits::{AiEnv, NetworkEnv};

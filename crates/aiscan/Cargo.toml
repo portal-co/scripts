@@ -10,6 +10,7 @@ env-traits = { workspace = true }
 anyhow     = { workspace = true }
 serde      = { workspace = true }
 serde_json = { workspace = true }
+regex      = { workspace = true }
 
 [dev-dependencies]
 env-fake = { workspace = true }

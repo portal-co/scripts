@@ -229,9 +229,12 @@ env-real    = { workspace = true }
 # tool libraries (call as library functions, not subprocess)
 keyguard    = { workspace = true }
 repoutils   = { workspace = true }
-# rice for AGENTS.md splicing (installed via cargo install --git at deploy time)
-# note: rice is NOT a compile-time dep of portal-scripts; it is invoked as a
-# subprocess after `cargo install --git https://github.com/portal-co/rice.git rice`
+# rice for AGENTS.md splicing — a compile-time dep (included transitively via
+# Cargo.lock when portal-scripts is built from source in this repo).
+# In TARGET repos that receive the deployed workflow templates, rice is not
+# present as source; those workflows install it with:
+#   cargo install --git https://github.com/portal-co/rice.git rice
+rice        = { git = "https://github.com/portal-co/rice.git" }
 # CLI
 clap        = { workspace = true }
 anyhow      = { workspace = true }
