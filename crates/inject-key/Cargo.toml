@@ -1,0 +1,21 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "inject-key"
+version.workspace = true
+edition.workspace = true
+description = "Upsert or rotate the AI submission key in key.agents_.md"
+
+[[bin]]
+name = "inject-key"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+rand       = { workspace = true }
+base32     = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

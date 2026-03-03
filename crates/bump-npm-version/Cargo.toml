@@ -1,0 +1,20 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "bump-npm-version"
+version.workspace = true
+edition.workspace = true
+description = "Bump semver version in every publishable package.json in a repo"
+
+[[bin]]
+name = "bump-npm-version"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+pkgjson    = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

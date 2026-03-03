@@ -1,0 +1,21 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "scaffold-repo"
+version.workspace = true
+edition.workspace = true
+description = "Scaffold a new Cargo + npm workspace repository"
+
+[[bin]]
+name = "scaffold-repo"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+serde_json = { workspace = true }
+serde      = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

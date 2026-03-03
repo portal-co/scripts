@@ -1,0 +1,16 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "pkgjson"
+version.workspace = true
+edition.workspace = true
+description = "Read and surgically rewrite package.json files, preserving key order and indentation"
+
+[dependencies]
+env-traits = { workspace = true }
+anyhow     = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+regex      = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

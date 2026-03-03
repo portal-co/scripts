@@ -1,0 +1,21 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "agents-zip"
+version.workspace = true
+edition.workspace = true
+description = "Assemble a zip archive of agents_.md files from GitHub or local repos"
+
+[[bin]]
+name = "agents-zip"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+repoutils  = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+zip        = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }
