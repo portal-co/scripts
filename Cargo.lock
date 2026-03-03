@@ -42,18 +42,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aiscan"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env-fake",
- "env-traits",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "anstream"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -217,18 +205,6 @@ name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
-
-[[package]]
-name = "check-ai-key"
-version = "0.1.0"
-dependencies = [
- "aiscan",
- "anyhow",
- "env-fake",
- "env-real",
- "env-traits",
- "keyguard",
-]
 
 [[package]]
 name = "cipher"
@@ -427,6 +403,7 @@ dependencies = [
 [[package]]
 name = "env-fake"
 version = "0.1.0"
+source = "git+https://github.com/portal-co/os-env-traits.git#f90db7061effcd2855e5f8875adb89c604760704"
 dependencies = [
  "anyhow",
  "env-traits",
@@ -435,6 +412,7 @@ dependencies = [
 [[package]]
 name = "env-real"
 version = "0.1.0"
+source = "git+https://github.com/portal-co/os-env-traits.git#f90db7061effcd2855e5f8875adb89c604760704"
 dependencies = [
  "anyhow",
  "env-traits",
@@ -447,6 +425,7 @@ dependencies = [
 [[package]]
 name = "env-traits"
 version = "0.1.0"
+source = "git+https://github.com/portal-co/os-env-traits.git#f90db7061effcd2855e5f8875adb89c604760704"
 dependencies = [
  "anyhow",
 ]
@@ -985,16 +964,6 @@ checksum = "b49715b7073f385ba4bc528e5747d02e66cb39c6146efb66b781f131f0fb399c"
 dependencies = [
  "once_cell",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "keyguard"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env-fake",
- "env-traits",
- "regex",
 ]
 
 [[package]]

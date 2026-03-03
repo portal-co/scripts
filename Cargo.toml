@@ -1,14 +1,8 @@
 # AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 [workspace]
 members = [
-  "crates/env-traits",
-  "crates/env-fake",
-  "crates/env-real",
-  "crates/aiscan",
-  "crates/keyguard",
   "crates/pkgjson",
   "crates/repoutils",
-  "crates/check-ai-key",
   "crates/inject-key",
   "crates/bump-npm-version",
   "crates/agents-zip",
@@ -50,11 +44,11 @@ walkdir            = "2"
 # test helpers
 tempfile           = "3"
 
-# intra-workspace crates
-env-traits   = { path = "crates/env-traits" }
-env-fake     = { path = "crates/env-fake" }
-env-real     = { path = "crates/env-real" }
-aiscan       = { path = "crates/aiscan" }
-keyguard     = { path = "crates/keyguard" }
+# env / RASP crates — now in separate repos
+env-traits   = { git = "https://github.com/portal-co/os-env-traits.git" }
+env-fake     = { git = "https://github.com/portal-co/os-env-traits.git" }
+env-real     = { git = "https://github.com/portal-co/os-env-traits.git" }
+aiscan       = { git = "https://github.com/portal-co/tiny-rasp.git" }
+keyguard     = { git = "https://github.com/portal-co/tiny-rasp.git" }
 pkgjson      = { path = "crates/pkgjson" }
 repoutils    = { path = "crates/repoutils" }
