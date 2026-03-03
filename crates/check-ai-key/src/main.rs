@@ -13,9 +13,18 @@ use std::process::ExitCode;
 use aiscan::{Detection, RaspAlert, RaspScanner, Severity};
 use env_traits::{AiEnv, FileEnv, GitEnv};
 
-/// Halt directive embedded at compile time — printed when a Critical/High RASP
-/// alert fires so that any AI agent reading the output receives the directive.
-const HALT_PROMPT: &str = include_str!("halt_prompt.md");
+/// Halt directive embedded at compile time.  The file has a context-framing
+/// preamble for agents that encounter it during normal codebase exploration;
+/// strip it at the sentinel so only the live directive reaches the output.
+const HALT_PROMPT_RAW: &str = include_str!("halt_prompt.md");
+const HALT_DIRECTIVE_SENTINEL: &str = "<!-- HALT_DIRECTIVE_START -->\n";
+
+fn halt_prompt() -> &'static str {
+    match HALT_PROMPT_RAW.find(HALT_DIRECTIVE_SENTINEL) {
+        Some(pos) => &HALT_PROMPT_RAW[pos + HALT_DIRECTIVE_SENTINEL.len()..],
+        None      => HALT_PROMPT_RAW, // sentinel missing — emit whole file
+    }
+}
 
 /// Well-known binary / non-text file extensions to skip.
 const SKIP_EXTENSIONS: &[&str] = &[
@@ -249,7 +258,7 @@ fn display_report(detections: &[Detection], key: &str) -> ExitCode {
         eprintln!();
         // Emit the halt directive so any AI agent reading this output receives it.
         eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        eprintln!("{HALT_PROMPT}");
+        eprintln!("{}", halt_prompt());
         eprintln!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
     }
 
