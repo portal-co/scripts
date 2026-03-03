@@ -1,7 +1,61 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 [workspace]
-members = []
-resolver = "3"
+members = [
+  "crates/env-traits",
+  "crates/env-fake",
+  "crates/env-real",
+  "crates/aiscan",
+  "crates/keyguard",
+  "crates/pkgjson",
+  "crates/repoutils",
+  "crates/check-ai-key",
+  "crates/inject-key",
+  "crates/bump-npm-version",
+  "crates/agents-zip",
+  "crates/scaffold-repo",
+  "crates/copy-feed-files",
+  "crates/forfiles",
+]
+resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version     = "0.1.0"
+edition     = "2021"
 description = "Workspace for scripts"
+
+[workspace.dependencies]
+# async runtime
+tokio              = { version = "1", features = ["full"] }
+# HTTP client (blocking only for now — see Q3)
+reqwest            = { version = "0.12", features = ["json", "blocking"] }
+# JSON
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
+# zip archives
+zip                = "2"
+# regex
+regex              = "1"
+# CLI argument parsing
+clap               = { version = "4", features = ["derive"] }
+# error handling
+anyhow             = "1"
+thiserror          = "1"
+# tracing / logging
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# key generation
+rand               = "0.8"
+base32             = "0.4"
+# directory walking (env-real)
+walkdir            = "2"
+# test helpers
+tempfile           = "3"
+
+# intra-workspace crates
+env-traits   = { path = "crates/env-traits" }
+env-fake     = { path = "crates/env-fake" }
+env-real     = { path = "crates/env-real" }
+aiscan       = { path = "crates/aiscan" }
+keyguard     = { path = "crates/keyguard" }
+pkgjson      = { path = "crates/pkgjson" }
+repoutils    = { path = "crates/repoutils" }

@@ -1,0 +1,20 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "check-ai-key"
+version.workspace = true
+edition.workspace = true
+description = "CI entrypoint: verify AI submission key in changed files"
+
+[[bin]]
+name = "check-ai-key"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+aiscan     = { workspace = true }
+keyguard   = { workspace = true }
+anyhow     = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

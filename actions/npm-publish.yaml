@@ -1,14 +1,6 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 ---
 name: npm Publish
-
-# Runs on every push to main (mirroring the Rust release-plz workflow).
-# Bumps the patch version of every publishable package.json in the repository,
-# commits the change, creates per-package git tags, and publishes to npm.
-#
-# Required secret:  NPM_TOKEN  — an npm automation token with publish rights.
-#
-# Optional inputs (when called as workflow_call):
-#   bump    — semver component to increment (default: patch)
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -35,12 +27,16 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          # persist-credentials so we can push the version-bump commit.
           persist-credentials: true
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build bump-npm-version
+        run: cargo build --release -p bump-npm-version
 
       - uses: actions/setup-node@v4
         with:
@@ -48,8 +44,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        # Only install if a package.json is present; failures here are non-fatal
-        # because some repos may have no npm packages.
         run: |
           if [ -f package.json ]; then
             npm install --ignore-scripts
@@ -59,9 +53,7 @@ jobs:
         id: bump
         run: |
           BUMP="${{ inputs.bump || 'patch' }}"
-          # Capture the list of bumped packages (tab-separated name@ver\tpath lines).
-          # Exit code 2 means nothing to publish — treat as success with no-op.
-          output=$(go run ./tools/bump_npm_version -bump "$BUMP" -add-missing 2>&1) || {
+          output=$(./target/release/bump-npm-version --bump "$BUMP" --add-missing 2>&1) || {
             code=$?
             if [ "$code" -eq 2 ]; then
               echo "No publishable packages found; skipping."
@@ -73,8 +65,6 @@ jobs:
           }
           echo "$output"
           echo "changed=true" >> "$GITHUB_OUTPUT"
-          # Store the bump list for the tagging step.
-          # GitHub Actions multiline output via delimiter.
           {
             echo "packages<<EOF"
             echo "$output"
@@ -109,8 +99,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          # Publish workspace members if workspaces are defined, otherwise
-          # publish the root package.
           if node -e "const p=require('./package.json'); process.exit(p.workspaces&&p.workspaces.length?0:1)" 2>/dev/null; then
             npm publish --workspaces --access public
           else
