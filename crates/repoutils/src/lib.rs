@@ -5,10 +5,9 @@
 //! wrappers over `GitEnv` for common git-root queries.
 
 use std::path::PathBuf;
-use std::process::Command;
 
 use anyhow::{Context, Result};
-use env_traits::GitEnv;
+use env_traits::{GitEnv, GitHubEnv};
 
 // ── OrgRepo ───────────────────────────────────────────────────────────────────
 
@@ -120,91 +119,43 @@ where
         .unwrap_or_else(|| PathBuf::from(&root)))
 }
 
-/// Run `gh repo view --json owner --jq .owner.login` to get the organization.
-pub fn get_org() -> Result<String> {
-    let output = Command::new("gh")
-        .args(["repo", "view", "--json", "owner", "--jq", ".owner.login"])
-        .output()
-        .context("failed to run gh repo view")?;
-    if !output.status.success() {
-        anyhow::bail!(
-            "gh repo view failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+/// Get the current owner/org using GitHubEnv.
+pub fn get_org<H: GitHubEnv>(gh: &H) -> Result<String>
+where
+    H::Error: Send + Sync + 'static,
+{
+    gh.current_owner().context("failed to get current owner")
 }
 
-/// Run `gh repo list org --limit N --json name --jq '.[].name'` to list repos in an org.
-pub fn list_org_repos(org: &str, limit: usize) -> Result<Vec<String>> {
-    let limit = if limit == 0 { 1000 } else { limit };
-    let output = Command::new("gh")
-        .args([
-            "repo",
-            "list",
-            org,
-            "--limit",
-            &limit.to_string(),
-            "--json",
-            "name",
-            "--jq",
-            ".[].name",
-        ])
-        .output()
-        .context("failed to run gh repo list")?;
-    if !output.status.success() {
-        anyhow::bail!(
-            "gh repo list failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let repos: Vec<String> = stdout
-        .lines()
-        .filter(|line| !line.is_empty())
-        .map(|s| s.to_string())
-        .collect();
-    Ok(repos)
+/// List repos in an org using GitHubEnv.
+pub fn list_org_repos<H: GitHubEnv>(gh: &H, org: &str, limit: usize) -> Result<Vec<String>>
+where
+    H::Error: Send + Sync + 'static,
+{
+    gh.list_repos(org, limit)
+        .context("failed to list org repos")
 }
 
-/// A file or directory in a GitHub repository.
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct GitHubFile {
-    pub name: String,
-    pub path: String,
-    #[serde(rename = "type")]
-    pub file_type: String,
-    #[serde(rename = "download_url")]
-    pub download_url: Option<String>,
+/// List files in a repo using GitHubEnv.
+pub fn list_repo_contents<H: GitHubEnv>(
+    gh: &H,
+    org: &str,
+    repo: &str,
+    path: &str,
+) -> Result<Vec<env_traits::GitHubFile>>
+where
+    H::Error: Send + Sync + 'static,
+{
+    gh.list_contents(org, repo, path)
+        .context("failed to list repo contents")
 }
 
-/// Recursively list all files in a GitHub repository matching a path pattern.
-/// Uses `gh api` with --paginate to get all pages.
-pub fn list_repo_contents(org: &str, repo: &str, path: &str) -> Result<Vec<GitHubFile>> {
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        org, repo, path
-    );
-    let output = Command::new("gh")
-        .args(["api", &url, "--paginate"])
-        .output()
-        .context("failed to run gh api")?;
-    if !output.status.success() {
-        anyhow::bail!("gh api failed: {}", String::from_utf8_lossy(&output.stderr));
-    }
-    let items: Vec<GitHubFile> =
-        serde_json::from_slice(&output.stdout).context("failed to parse gh api response")?;
-
-    let mut all_files = Vec::new();
-    for item in items {
-        if item.file_type == "dir" {
-            let sub_files = list_repo_contents(org, repo, &item.path)?;
-            all_files.extend(sub_files);
-        } else {
-            all_files.push(item);
-        }
-    }
-    Ok(all_files)
+/// Download a file using GitHubEnv.
+pub fn download_file<H: GitHubEnv>(gh: &H, url: &str) -> Result<Vec<u8>>
+where
+    H::Error: Send + Sync + 'static,
+{
+    gh.download_file(url).context("failed to download file")
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

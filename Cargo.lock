@@ -1366,8 +1366,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env-traits",
- "serde",
- "serde_json",
 ]
 
 [[package]]
