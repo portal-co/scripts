@@ -1,16 +1,13 @@
 // AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
-//! Read and surgically rewrite `package.json` files.
+//! Read and rewrite `package.json` files.
 //!
-//! Key design point: we never round-trip through a JSON serialiser for the
-//! whole document, because that would reorder keys and produce noisy diffs.
-//! Instead we use targeted regex splices to touch only the bytes that change,
-//! exactly as the original Go implementation does.
+//! Uses a deserialize-patch-serialize approach: parse the JSON, modify the
+//! version field in memory, then serialize back with pretty-printing.
 
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use env_traits::FileEnv;
-use regex::Regex;
 use serde::Deserialize;
 
 // ── Package ───────────────────────────────────────────────────────────────────
@@ -18,9 +15,9 @@ use serde::Deserialize;
 /// Minimal representation of the fields we care about in a `package.json`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Package {
-    pub name:           String,
-    pub version:        String, // "" if absent
-    pub private:        bool,
+    pub name: String,
+    pub version: String, // "" if absent
+    pub private: bool,
     pub has_workspaces: bool,
 }
 
@@ -90,14 +87,29 @@ pub fn bump_version(version: &str, part: BumpPart) -> Result<String> {
             version
         ));
     }
-    let mut major: u64 = parts[0].parse().with_context(|| format!("bad major in {version:?}"))?;
-    let mut minor: u64 = parts[1].parse().with_context(|| format!("bad minor in {version:?}"))?;
-    let mut patch: u64 = parts[2].parse().with_context(|| format!("bad patch in {version:?}"))?;
+    let mut major: u64 = parts[0]
+        .parse()
+        .with_context(|| format!("bad major in {version:?}"))?;
+    let mut minor: u64 = parts[1]
+        .parse()
+        .with_context(|| format!("bad minor in {version:?}"))?;
+    let mut patch: u64 = parts[2]
+        .parse()
+        .with_context(|| format!("bad patch in {version:?}"))?;
 
     match part {
-        BumpPart::Major => { major += 1; minor = 0; patch = 0; }
-        BumpPart::Minor => { minor += 1; patch = 0; }
-        BumpPart::Patch => { patch += 1; }
+        BumpPart::Major => {
+            major += 1;
+            minor = 0;
+            patch = 0;
+        }
+        BumpPart::Minor => {
+            minor += 1;
+            patch = 0;
+        }
+        BumpPart::Patch => {
+            patch += 1;
+        }
     }
     Ok(format!("{major}.{minor}.{patch}"))
 }
@@ -123,78 +135,33 @@ where
 #[derive(Deserialize)]
 struct RawPackage {
     #[serde(default)]
-    name:       String,
+    name: String,
     #[serde(default)]
-    version:    String,
+    version: String,
     #[serde(default)]
-    private:    bool,
+    private: bool,
     #[serde(default)]
     workspaces: Option<serde_json::Value>,
 }
 
 fn parse(data: &[u8]) -> Result<Package> {
-    let raw: RawPackage =
-        serde_json::from_slice(data).context("pkgjson: unmarshal")?;
+    let raw: RawPackage = serde_json::from_slice(data).context("pkgjson: unmarshal")?;
     Ok(Package {
-        name:           raw.name,
-        version:        raw.version,
-        private:        raw.private,
+        name: raw.name,
+        version: raw.version,
+        private: raw.private,
         has_workspaces: raw.workspaces.is_some(),
     })
 }
 
 fn splice_version(data: &[u8], new_version: &str) -> Result<Vec<u8>> {
-    let text = std::str::from_utf8(data).context("package.json is not UTF-8")?;
-    let version_re = Regex::new(r#"("version"\s*:\s*)"([^"]*)""#).unwrap();
+    let mut value: serde_json::Value =
+        serde_json::from_slice(data).context("pkgjson: unmarshal")?;
 
-    if version_re.is_match(text) {
-        let replaced = version_re
-            .replace(text, format!(r#"${{1}}"{new_version}""#))
-            .into_owned();
-        return Ok(replaced.into_bytes());
-    }
+    value["version"] = serde_json::Value::String(new_version.to_string());
 
-    // Insert after the "name" field.
-    let name_re = Regex::new(r#"("name"\s*:\s*"[^"]*")(\s*,?)"#).unwrap();
-    if !name_re.is_match(text) {
-        return Err(anyhow!(r#"neither "version" nor "name" field found"#));
-    }
-
-    let indent = detect_indent(data);
-    let pretty_re = Regex::new(r#"(?m)^[ \t]+""#).unwrap();
-    let pretty = pretty_re.is_match(text);
-
-    let mut replaced = false;
-    let result = name_re.replace(text, |caps: &regex::Captures| {
-        if replaced {
-            return caps[0].to_string();
-        }
-        replaced = true;
-        let name_token = &caps[1];
-        let comma = &caps[2];
-        if pretty {
-            let nl_indent = format!("{}{indent}", '\n');
-            format!(r#"{name_token},{nl_indent}"version": "{new_version}"{comma}"#)
-        } else {
-            format!(r#"{name_token},"version":"{new_version}"{comma}"#)
-        }
-    });
-
-    Ok(result.into_owned().into_bytes())
-}
-
-pub(crate) fn detect_indent(data: &[u8]) -> &'static str {
-    // We can't return a borrowed slice of `data` as `&'static str` without
-    // leaking; instead match the two common cases (tabs vs spaces).
-    let text = String::from_utf8_lossy(data);
-    let re = Regex::new(r#"(?m)^([ \t]+)""#).unwrap();
-    if let Some(cap) = re.captures(&text) {
-        let indent = cap.get(1).unwrap().as_str();
-        if indent.starts_with('\t') {
-            return "	";
-        }
-    }
-    "  "
+    let out = serde_json::to_string_pretty(&value).context("pkgjson: marshal")?;
+    Ok(out.into_bytes())
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -239,19 +206,34 @@ mod tests {
 
     #[test]
     fn is_publishable_normal() {
-        let pkg = Package { name: "foo".into(), version: "1.0.0".into(), private: false, has_workspaces: false };
+        let pkg = Package {
+            name: "foo".into(),
+            version: "1.0.0".into(),
+            private: false,
+            has_workspaces: false,
+        };
         assert!(pkg.is_publishable(false));
     }
 
     #[test]
     fn is_publishable_private() {
-        let pkg = Package { name: "foo".into(), version: "1.0.0".into(), private: true, has_workspaces: false };
+        let pkg = Package {
+            name: "foo".into(),
+            version: "1.0.0".into(),
+            private: true,
+            has_workspaces: false,
+        };
         assert!(!pkg.is_publishable(false));
     }
 
     #[test]
     fn is_publishable_no_version_no_add() {
-        let pkg = Package { name: "foo".into(), version: "".into(), private: false, has_workspaces: false };
+        let pkg = Package {
+            name: "foo".into(),
+            version: "".into(),
+            private: false,
+            has_workspaces: false,
+        };
         assert!(!pkg.is_publishable(false));
         assert!(pkg.is_publishable(true));
     }

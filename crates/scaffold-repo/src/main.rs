@@ -41,12 +41,12 @@ pub struct Opts {
 
 // ── Pure builders ─────────────────────────────────────────────────────────────
 
-pub fn build_root_cargo(
-    workspace_private: bool,
-    license: &str,
-    desc: &str,
-) -> String {
-    let mut lines = vec!["[workspace]".to_string(), "members = []".to_string(), "resolver = \"2\"".to_string()];
+pub fn build_root_cargo(workspace_private: bool, license: &str, desc: &str) -> String {
+    let mut lines = vec![
+        "[workspace]".to_string(),
+        "members = []".to_string(),
+        "resolver = \"2\"".to_string(),
+    ];
     if workspace_private || !license.is_empty() || !desc.is_empty() {
         lines.push(String::new());
         lines.push("[workspace.package]".to_string());
@@ -66,8 +66,15 @@ pub fn build_root_cargo(
 }
 
 pub fn build_package_json(name: &str, desc: &str) -> String {
-    let pkg_name = format!("@portal-solutions/{}", name.to_lowercase().replace(' ', "-"));
-    let desc = if desc.is_empty() { "Generated workspace" } else { desc };
+    let pkg_name = format!(
+        "@portal-solutions/{}",
+        name.to_lowercase().replace(' ', "-")
+    );
+    let desc = if desc.is_empty() {
+        "Generated workspace"
+    } else {
+        desc
+    };
     // Produce compact JSON matching the Go json.MarshalIndent with "" indent
     let obj = serde_json::json!({
         "name": pkg_name,
@@ -76,7 +83,7 @@ pub fn build_package_json(name: &str, desc: &str) -> String {
         "type": "module",
         "devDependencies": { "zshy": "^0.7.0" }
     });
-    serde_json::to_string(&obj).unwrap()
+    serde_json::to_string_pretty(&obj).unwrap()
 }
 
 pub fn build_gitignore() -> &'static str {
@@ -95,8 +102,14 @@ where
     F::Error: Send + Sync + 'static,
     G::Error: Send + Sync + 'static,
 {
-    let name = opts.name.as_deref().ok_or_else(|| anyhow::anyhow!("--name is required"))?;
-    let out  = opts.out.as_deref().ok_or_else(|| anyhow::anyhow!("--out is required"))?;
+    let name = opts
+        .name
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("--name is required"))?;
+    let out = opts
+        .out
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("--out is required"))?;
     if opts.description.is_empty() {
         anyhow::bail!("--description is required");
     }
@@ -127,7 +140,10 @@ where
         &target.join("README.md").to_string_lossy(),
         format!("# {name}\n\nGenerated repository.\n").as_bytes(),
     )?;
-    file.write_file(&target.join(".gitignore").to_string_lossy(), build_gitignore().as_bytes())?;
+    file.write_file(
+        &target.join(".gitignore").to_string_lossy(),
+        build_gitignore().as_bytes(),
+    )?;
 
     if opts.git_init {
         git.init(&target.to_string_lossy())?;
@@ -146,7 +162,7 @@ where
     let repo_root = PathBuf::from(git.repo_root()?);
     println!("Updating repository at {}", repo_root.display());
 
-    let crates_dir   = repo_root.join("crates");
+    let crates_dir = repo_root.join("crates");
     let packages_dir = repo_root.join("packages");
 
     if !file.dir_exists(&crates_dir.to_string_lossy()) {
@@ -182,15 +198,15 @@ mod tests {
     #[test]
     fn scaffold_creates_expected_files() {
         let file = FakeFileEnv::default();
-        let git  = FakeGitEnv::default().with_repo_root("/out/myrepo");
+        let git = FakeGitEnv::default().with_repo_root("/out/myrepo");
         let opts = Opts {
-            name:              Some("myrepo".into()),
-            out:               Some(PathBuf::from("/out")),
-            description:       "A test repo".into(),
-            license:           "MIT".into(),
+            name: Some("myrepo".into()),
+            out: Some(PathBuf::from("/out")),
+            description: "A test repo".into(),
+            license: "MIT".into(),
             workspace_private: false,
-            git_init:          false,
-            update:            false,
+            git_init: false,
+            update: false,
         };
         scaffold(&file, &git, &opts).unwrap();
         assert!(file.file_exists("/out/myrepo/Cargo.toml"));
@@ -201,7 +217,7 @@ mod tests {
     #[test]
     fn update_creates_missing_dirs() {
         let file = FakeFileEnv::default();
-        let git  = FakeGitEnv::default().with_repo_root("/repo");
+        let git = FakeGitEnv::default().with_repo_root("/repo");
         update(&file, &git).unwrap();
         assert!(file.file_exists("/repo/crates/_"));
         assert!(file.file_exists("/repo/packages/_"));
