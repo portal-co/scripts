@@ -269,6 +269,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
+name = "copy-feed-files"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env-fake",
+ "env-real",
+ "env-traits",
+ "repoutils",
+ "reqwest",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1353,6 +1366,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env-traits",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

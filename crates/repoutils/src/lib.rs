@@ -5,8 +5,9 @@
 //! wrappers over `GitEnv` for common git-root queries.
 
 use std::path::PathBuf;
+use std::process::Command;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use env_traits::GitEnv;
 
 // ── OrgRepo ───────────────────────────────────────────────────────────────────
@@ -14,8 +15,8 @@ use env_traits::GitEnv;
 /// The result of parsing an `org/repo` string or a GitHub URL.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrgRepo {
-    pub org:       String,
-    pub repo:      String,
+    pub org: String,
+    pub repo: String,
     /// `true` when the input was a URL or `org/repo` form (i.e. remote);
     /// `false` when the input was a bare repository name with no org.
     pub is_remote: bool,
@@ -30,18 +31,27 @@ pub fn parse_org_repo(input: &str) -> OrgRepo {
     let input = input.trim_end_matches(".git");
 
     // HTTPS URL
-    if let Some(rest) = input.strip_prefix("https://github.com/")
+    if let Some(rest) = input
+        .strip_prefix("https://github.com/")
         .or_else(|| input.strip_prefix("http://github.com/"))
     {
         if let Some((org, repo)) = rest.split_once('/') {
-            return OrgRepo { org: org.into(), repo: repo.into(), is_remote: true };
+            return OrgRepo {
+                org: org.into(),
+                repo: repo.into(),
+                is_remote: true,
+            };
         }
     }
 
     // SSH URL: git@github.com:org/repo
     if let Some(rest) = input.strip_prefix("git@github.com:") {
         if let Some((org, repo)) = rest.split_once('/') {
-            return OrgRepo { org: org.into(), repo: repo.into(), is_remote: true };
+            return OrgRepo {
+                org: org.into(),
+                repo: repo.into(),
+                is_remote: true,
+            };
         }
     }
 
@@ -49,18 +59,30 @@ pub fn parse_org_repo(input: &str) -> OrgRepo {
     if input.starts_with("git://") || input.starts_with("ssh://") {
         if let Some(after_host) = input.splitn(4, '/').nth(3) {
             if let Some((org, repo)) = after_host.split_once('/') {
-                return OrgRepo { org: org.into(), repo: repo.into(), is_remote: true };
+                return OrgRepo {
+                    org: org.into(),
+                    repo: repo.into(),
+                    is_remote: true,
+                };
             }
         }
     }
 
     // org/repo (slash-separated, no protocol)
     if let Some((org, repo)) = input.split_once('/') {
-        return OrgRepo { org: org.into(), repo: repo.into(), is_remote: true };
+        return OrgRepo {
+            org: org.into(),
+            repo: repo.into(),
+            is_remote: true,
+        };
     }
 
     // Bare name — treat as local path
-    OrgRepo { org: String::new(), repo: input.into(), is_remote: false }
+    OrgRepo {
+        org: String::new(),
+        repo: input.into(),
+        is_remote: false,
+    }
 }
 
 /// Return `true` if `s` looks like a git remote URL.
@@ -96,6 +118,93 @@ where
         .file_name()
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(&root)))
+}
+
+/// Run `gh repo view --json owner --jq .owner.login` to get the organization.
+pub fn get_org() -> Result<String> {
+    let output = Command::new("gh")
+        .args(["repo", "view", "--json", "owner", "--jq", ".owner.login"])
+        .output()
+        .context("failed to run gh repo view")?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "gh repo view failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Run `gh repo list org --limit N --json name --jq '.[].name'` to list repos in an org.
+pub fn list_org_repos(org: &str, limit: usize) -> Result<Vec<String>> {
+    let limit = if limit == 0 { 1000 } else { limit };
+    let output = Command::new("gh")
+        .args([
+            "repo",
+            "list",
+            org,
+            "--limit",
+            &limit.to_string(),
+            "--json",
+            "name",
+            "--jq",
+            ".[].name",
+        ])
+        .output()
+        .context("failed to run gh repo list")?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "gh repo list failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let repos: Vec<String> = stdout
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    Ok(repos)
+}
+
+/// A file or directory in a GitHub repository.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct GitHubFile {
+    pub name: String,
+    pub path: String,
+    #[serde(rename = "type")]
+    pub file_type: String,
+    #[serde(rename = "download_url")]
+    pub download_url: Option<String>,
+}
+
+/// Recursively list all files in a GitHub repository matching a path pattern.
+/// Uses `gh api` with --paginate to get all pages.
+pub fn list_repo_contents(org: &str, repo: &str, path: &str) -> Result<Vec<GitHubFile>> {
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        org, repo, path
+    );
+    let output = Command::new("gh")
+        .args(["api", &url, "--paginate"])
+        .output()
+        .context("failed to run gh api")?;
+    if !output.status.success() {
+        anyhow::bail!("gh api failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+    let items: Vec<GitHubFile> =
+        serde_json::from_slice(&output.stdout).context("failed to parse gh api response")?;
+
+    let mut all_files = Vec::new();
+    for item in items {
+        if item.file_type == "dir" {
+            let sub_files = list_repo_contents(org, repo, &item.path)?;
+            all_files.extend(sub_files);
+        } else {
+            all_files.push(item);
+        }
+    }
+    Ok(all_files)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -149,11 +258,17 @@ mod tests {
 
     #[test]
     fn repo_name_from_https_url() {
-        assert_eq!(repo_name_from_url("https://github.com/org/my-repo.git"), "my-repo");
+        assert_eq!(
+            repo_name_from_url("https://github.com/org/my-repo.git"),
+            "my-repo"
+        );
     }
 
     #[test]
     fn repo_name_from_ssh_url() {
-        assert_eq!(repo_name_from_url("git@github.com:org/my-repo.git"), "my-repo");
+        assert_eq!(
+            repo_name_from_url("git@github.com:org/my-repo.git"),
+            "my-repo"
+        );
     }
 }
