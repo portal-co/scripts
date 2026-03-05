@@ -87,12 +87,15 @@ pub fn repo_name_from_url(url: &str) -> &str {
 
 /// Return the name of the repository (the last component of `git rev-parse
 /// --show-toplevel`).
-pub fn current_repo_name<G: GitEnv>(git: &G) -> Result<PathBuf> {
+pub fn current_repo_name<G: GitEnv>(git: &G) -> Result<PathBuf>
+where
+    G::Error: Send + Sync + 'static,
+{
     let root = git.repo_root()?;
-    Ok(root
+    Ok(std::path::Path::new(&root)
         .file_name()
-        .map(|n| PathBuf::from(n))
-        .unwrap_or(root))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(&root)))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

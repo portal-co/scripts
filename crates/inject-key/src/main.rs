@@ -4,7 +4,7 @@
 //! Usage:
 //!   inject-key [--repo <path>] [--rotate] [--dry-run]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
@@ -112,17 +112,21 @@ pub fn render_file(key: &str) -> String {
 }
 
 /// Core logic.
-pub fn run<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result<()> {
+pub fn run<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result<()>
+where
+    F::Error: Send + Sync + 'static,
+    G::Error: Send + Sync + 'static,
+{
     let repo_root: PathBuf = match &opts.repo {
         Some(p) => p.clone(),
-        None => git.repo_root()?,
+        None => git.repo_root()?.into(),
     };
 
     let key_file = repo_root.join("key.agents_.md");
 
     // Read existing content (if present).
-    let existing_content = if file.file_exists(&key_file) {
-        let data = file.read_file(&key_file)?;
+    let existing_content = if file.file_exists(&key_file.to_string_lossy()) {
+        let data = file.read_file(&key_file.to_string_lossy())?;
         String::from_utf8_lossy(&data).into_owned()
     } else {
         String::new()
@@ -142,7 +146,7 @@ pub fn run<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result<()> 
         return Ok(());
     }
 
-    file.write_file(&key_file, new_content.as_bytes())?;
+    file.write_file(&key_file.to_string_lossy(), new_content.as_bytes())?;
 
     match (&old_key, opts.rotate) {
         (Some(old), true) => println!(
@@ -208,7 +212,7 @@ mod tests {
         let git = FakeGitEnv::default().with_repo_root("/repo");
         let opts = Opts { repo: Some(PathBuf::from("/repo")), rotate: false, dry_run: false };
         run(&file, &git, &opts).unwrap();
-        let data = file.read_file(Path::new("/repo/key.agents_.md")).unwrap();
+        let data = file.read_file("/repo/key.agents_.md").unwrap();
         let content = String::from_utf8(data).unwrap();
         assert!(content.contains("AIKEY-"));
     }
@@ -221,7 +225,7 @@ mod tests {
         let git = FakeGitEnv::default().with_repo_root("/repo");
         let opts = Opts { repo: Some(PathBuf::from("/repo")), rotate: false, dry_run: false };
         run(&file, &git, &opts).unwrap();
-        let data = file.read_file(Path::new("/repo/key.agents_.md")).unwrap();
+        let data = file.read_file("/repo/key.agents_.md").unwrap();
         let content = String::from_utf8(data).unwrap();
         assert!(content.contains("AIKEY-existingkey234"));
     }
@@ -233,7 +237,7 @@ mod tests {
         let opts = Opts { repo: Some(PathBuf::from("/repo")), rotate: false, dry_run: true };
         run(&file, &git, &opts).unwrap();
         // File should not have been written.
-        assert!(!file.file_exists(Path::new("/repo/key.agents_.md")));
+        assert!(!file.file_exists("/repo/key.agents_.md"));
     }
 }
 

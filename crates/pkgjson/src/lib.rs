@@ -65,9 +65,12 @@ impl std::str::FromStr for BumpPart {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /// Parse the fields we need from the `package.json` at `path`.
-pub fn read<F: FileEnv>(file: &F, path: &Path) -> Result<Package> {
+pub fn read<F: FileEnv>(file: &F, path: &Path) -> Result<Package>
+where
+    F::Error: Send + Sync + 'static,
+{
     let data = file
-        .read_file(path)
+        .read_file(&path.to_string_lossy())
         .with_context(|| format!("pkgjson: read {}", path.display()))?;
     parse(&data)
 }
@@ -102,13 +105,16 @@ pub fn bump_version(version: &str, part: BumpPart) -> Result<String> {
 /// Rewrite the `"version"` field in the `package.json` at `path` to
 /// `new_version`.  If the file has no `"version"` field, one is inserted after
 /// the `"name"` field.  The rest of the file is preserved byte-for-byte.
-pub fn set_version<F: FileEnv>(file: &F, path: &Path, new_version: &str) -> Result<()> {
+pub fn set_version<F: FileEnv>(file: &F, path: &Path, new_version: &str) -> Result<()>
+where
+    F::Error: Send + Sync + 'static,
+{
     let data = file
-        .read_file(path)
+        .read_file(&path.to_string_lossy())
         .with_context(|| format!("pkgjson: read {}", path.display()))?;
     let out = splice_version(&data, new_version)
         .with_context(|| format!("pkgjson: set_version {}", path.display()))?;
-    file.write_file(path, &out)
+    file.write_file(&path.to_string_lossy(), &out)
         .with_context(|| format!("pkgjson: write {}", path.display()))
 }
 
@@ -274,7 +280,7 @@ mod tests {
     fn set_version_replaces_existing() {
         let file = fake_with("/p/package.json", PRETTY);
         set_version(&file, Path::new("/p/package.json"), "2.0.0").unwrap();
-        let data = file.read_file(Path::new("/p/package.json")).unwrap();
+        let data = file.read_file("/p/package.json").unwrap();
         let pkg = parse(&data).unwrap();
         assert_eq!(pkg.version, "2.0.0");
     }
@@ -283,7 +289,7 @@ mod tests {
     fn set_version_inserts_after_name() {
         let file = fake_with("/p/package.json", NO_VERSION);
         set_version(&file, Path::new("/p/package.json"), "0.1.0").unwrap();
-        let data = file.read_file(Path::new("/p/package.json")).unwrap();
+        let data = file.read_file("/p/package.json").unwrap();
         let pkg = parse(&data).unwrap();
         assert_eq!(pkg.version, "0.1.0");
         // Name should still be present.
@@ -294,7 +300,7 @@ mod tests {
     fn set_version_compact() {
         let file = fake_with("/p/package.json", COMPACT);
         set_version(&file, Path::new("/p/package.json"), "9.9.9").unwrap();
-        let data = file.read_file(Path::new("/p/package.json")).unwrap();
+        let data = file.read_file("/p/package.json").unwrap();
         assert!(data.windows(5).any(|w| w == b"9.9.9"));
     }
 }

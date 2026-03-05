@@ -5,7 +5,7 @@
 //!   agents-zip [-o output.zip] <org/repo | /local/path> ...
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
@@ -24,7 +24,10 @@ pub struct Opts {
     pub repos: Vec<String>,
 }
 
-pub fn run<F: FileEnv, H: GitHubEnv>(file: &F, gh: &H, opts: &Opts) -> Result<usize> {
+pub fn run<F: FileEnv, H: GitHubEnv>(file: &F, gh: &H, opts: &Opts) -> Result<usize>
+where
+    F::Error: Send + Sync + 'static,
+{
     let mut zip_bytes: Vec<u8> = Vec::new();
     let mut total = 0usize;
 
@@ -76,23 +79,23 @@ pub fn run<F: FileEnv, H: GitHubEnv>(file: &F, gh: &H, opts: &Opts) -> Result<us
                     .unwrap_or_else(|| repo_spec.clone());
                 eprintln!("Processing local repo {repo_spec}…");
 
-                for entry in file.walk(&repo_path)? {
+                for entry in file.walk(&repo_path.to_string_lossy())? {
                     let (path, is_dir) = entry?;
                     if is_dir {
                         continue;
                     }
-                    if path
+                    let path_buf = std::path::PathBuf::from(&path);
+                    if path_buf
                         .file_name()
                         .and_then(|n| n.to_str())
                         .map(|n| n.ends_with("agents_.md"))
                         .unwrap_or(false)
                     {
                         let content = file.read_file(&path)?;
-                        let rel = path
+                        let rel = path_buf
                             .strip_prefix(&repo_path)
-                            .unwrap_or(&path)
-                            .display()
-                            .to_string();
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_else(|_| path.clone());
                         let archive_path = format!("{repo_name}/{rel}");
                         zw.start_file(&archive_path, zip_opts)?;
                         zw.write_all(&content)?;
@@ -105,7 +108,7 @@ pub fn run<F: FileEnv, H: GitHubEnv>(file: &F, gh: &H, opts: &Opts) -> Result<us
         zw.finish()?;
     }
 
-    file.write_file(&opts.output, &zip_bytes)?;
+    file.write_file(&opts.output.to_string_lossy(), &zip_bytes)?;
     eprintln!("Created {} with {total} file(s)", opts.output.display());
     Ok(total)
 }
@@ -129,7 +132,7 @@ mod tests {
         };
         let count = run(&file, &gh, &opts).unwrap();
         assert_eq!(count, 1);
-        assert!(file.file_exists(Path::new("/out/agents.zip")));
+        assert!(file.file_exists("/out/agents.zip"));
     }
 
     #[test]

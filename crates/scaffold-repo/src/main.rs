@@ -1,7 +1,7 @@
 // AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 //! Scaffold a new Cargo + npm workspace repository on disk.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
@@ -90,7 +90,11 @@ pub fn build_gitignore() -> &'static str {
 
 // ── Core logic ────────────────────────────────────────────────────────────────
 
-pub fn scaffold<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result<()> {
+pub fn scaffold<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result<()>
+where
+    F::Error: Send + Sync + 'static,
+    G::Error: Send + Sync + 'static,
+{
     let name = opts.name.as_deref().ok_or_else(|| anyhow::anyhow!("--name is required"))?;
     let out  = opts.out.as_deref().ok_or_else(|| anyhow::anyhow!("--out is required"))?;
     if opts.description.is_empty() {
@@ -98,64 +102,68 @@ pub fn scaffold<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> Result
     }
 
     let target = out.join(name);
-    file.create_dir_all(&target)?;
-    file.create_dir_all(&target.join("crates"))?;
-    file.create_dir_all(&target.join("packages"))?;
+    file.create_dir_all(&target.to_string_lossy())?;
+    file.create_dir_all(&target.join("crates").to_string_lossy())?;
+    file.create_dir_all(&target.join("packages").to_string_lossy())?;
 
     file.write_file(
-        &target.join("crates/_"),
+        &target.join("crates/_").to_string_lossy(),
         b"# marker to allow git track empty crates dir\n",
     )?;
     file.write_file(
-        &target.join("packages/_"),
+        &target.join("packages/_").to_string_lossy(),
         b"# marker to allow git track empty packages dir\n",
     )?;
 
     file.write_file(
-        &target.join("Cargo.toml"),
+        &target.join("Cargo.toml").to_string_lossy(),
         build_root_cargo(opts.workspace_private, &opts.license, &opts.description).as_bytes(),
     )?;
     file.write_file(
-        &target.join("package.json"),
+        &target.join("package.json").to_string_lossy(),
         build_package_json(name, &opts.description).as_bytes(),
     )?;
     file.write_file(
-        &target.join("README.md"),
+        &target.join("README.md").to_string_lossy(),
         format!("# {name}\n\nGenerated repository.\n").as_bytes(),
     )?;
-    file.write_file(&target.join(".gitignore"), build_gitignore().as_bytes())?;
+    file.write_file(&target.join(".gitignore").to_string_lossy(), build_gitignore().as_bytes())?;
 
     if opts.git_init {
-        git.init(&target)?;
-        git.add_and_commit(&target, "Initial scaffold")?;
+        git.init(&target.to_string_lossy())?;
+        git.add_and_commit(&target.to_string_lossy(), "Initial scaffold")?;
     }
 
     println!("Scaffolded repository at {}", target.display());
     Ok(())
 }
 
-pub fn update<F: FileEnv, G: GitEnv>(file: &F, git: &G) -> Result<()> {
-    let repo_root = git.repo_root()?;
+pub fn update<F: FileEnv, G: GitEnv>(file: &F, git: &G) -> Result<()>
+where
+    F::Error: Send + Sync + 'static,
+    G::Error: Send + Sync + 'static,
+{
+    let repo_root = PathBuf::from(git.repo_root()?);
     println!("Updating repository at {}", repo_root.display());
 
     let crates_dir   = repo_root.join("crates");
     let packages_dir = repo_root.join("packages");
 
-    if !file.dir_exists(&crates_dir) {
+    if !file.dir_exists(&crates_dir.to_string_lossy()) {
         println!("Creating crates/ directory…");
-        file.create_dir_all(&crates_dir)?;
-        file.write_file(&crates_dir.join("_"), b"# marker\n")?;
+        file.create_dir_all(&crates_dir.to_string_lossy())?;
+        file.write_file(&crates_dir.join("_").to_string_lossy(), b"# marker\n")?;
     }
-    if !file.dir_exists(&packages_dir) {
+    if !file.dir_exists(&packages_dir.to_string_lossy()) {
         println!("Creating packages/ directory…");
-        file.create_dir_all(&packages_dir)?;
-        file.write_file(&packages_dir.join("_"), b"# marker\n")?;
+        file.create_dir_all(&packages_dir.to_string_lossy())?;
+        file.write_file(&packages_dir.join("_").to_string_lossy(), b"# marker\n")?;
     }
 
     let gitignore = repo_root.join(".gitignore");
-    if !file.file_exists(&gitignore) {
+    if !file.file_exists(&gitignore.to_string_lossy()) {
         println!("Creating .gitignore…");
-        file.write_file(&gitignore, build_gitignore().as_bytes())?;
+        file.write_file(&gitignore.to_string_lossy(), build_gitignore().as_bytes())?;
     } else {
         println!(".gitignore already exists, skipping…");
     }
@@ -185,9 +193,9 @@ mod tests {
             update:            false,
         };
         scaffold(&file, &git, &opts).unwrap();
-        assert!(file.file_exists(Path::new("/out/myrepo/Cargo.toml")));
-        assert!(file.file_exists(Path::new("/out/myrepo/package.json")));
-        assert!(file.file_exists(Path::new("/out/myrepo/.gitignore")));
+        assert!(file.file_exists("/out/myrepo/Cargo.toml"));
+        assert!(file.file_exists("/out/myrepo/package.json"));
+        assert!(file.file_exists("/out/myrepo/.gitignore"));
     }
 
     #[test]
@@ -195,9 +203,9 @@ mod tests {
         let file = FakeFileEnv::default();
         let git  = FakeGitEnv::default().with_repo_root("/repo");
         update(&file, &git).unwrap();
-        assert!(file.file_exists(Path::new("/repo/crates/_")));
-        assert!(file.file_exists(Path::new("/repo/packages/_")));
-        assert!(file.file_exists(Path::new("/repo/.gitignore")));
+        assert!(file.file_exists("/repo/crates/_"));
+        assert!(file.file_exists("/repo/packages/_"));
+        assert!(file.file_exists("/repo/.gitignore"));
     }
 
     #[test]

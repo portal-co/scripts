@@ -38,33 +38,41 @@ pub struct Opts {
 /// Directories to skip when walking for package.json files.
 const SKIP_DIRS: &[&str] = &["node_modules", ".git"];
 
-pub fn find_package_jsons<F: FileEnv>(file: &F, repo_root: &Path) -> Result<Vec<PathBuf>> {
+pub fn find_package_jsons<F: FileEnv>(file: &F, repo_root: &Path) -> Result<Vec<PathBuf>>
+where
+    F::Error: Send + Sync + 'static,
+{
     let mut results = Vec::new();
-    for entry in file.walk(repo_root)? {
+    for entry in file.walk(&repo_root.to_string_lossy())? {
         let (path, is_dir) = entry?;
+        let path_buf = PathBuf::from(&path);
         if is_dir {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if let Some(name) = path_buf.file_name().and_then(|n| n.to_str()) {
                 if SKIP_DIRS.contains(&name) || name.starts_with('.') {
                     continue;
                 }
             }
             continue;
         }
-        if path.file_name().and_then(|n| n.to_str()) == Some("package.json") {
+        if path_buf.file_name().and_then(|n| n.to_str()) == Some("package.json") {
             // Skip files inside skipped directories.
-            let in_skip = path.components().any(|c| {
+            let in_skip = path_buf.components().any(|c| {
                 let s = c.as_os_str().to_str().unwrap_or("");
                 SKIP_DIRS.contains(&s) || (s.starts_with('.') && s != ".")
             });
             if !in_skip {
-                results.push(path);
+                results.push(path_buf);
             }
         }
     }
     Ok(results)
 }
 
-pub fn run<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> ExitCode {
+pub fn run<F: FileEnv, G: GitEnv>(file: &F, git: &G, opts: &Opts) -> ExitCode
+where
+    F::Error: Send + Sync + 'static,
+    G::Error: Send + Sync + 'static,
+{
     let repo_root = match resolve_repo(file, git, opts.repo.as_deref()) {
         Ok(r) => r,
         Err(e) => {
@@ -149,14 +157,18 @@ fn resolve_repo<F: FileEnv, G: GitEnv>(
     file: &F,
     git: &G,
     flag: Option<&Path>,
-) -> Result<PathBuf> {
+) -> Result<PathBuf>
+where
+    F::Error: Send + Sync + 'static,
+    G::Error: Send + Sync + 'static,
+{
     if let Some(p) = flag {
-        if !file.dir_exists(p) {
+        if !file.dir_exists(&p.to_string_lossy()) {
             anyhow::bail!("--repo {:?} is not a directory", p);
         }
         return Ok(p.to_path_buf());
     }
-    Ok(git.repo_root()?)
+    Ok(PathBuf::from(git.repo_root()?))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -186,7 +198,7 @@ mod tests {
         let git  = FakeGitEnv::default().with_repo_root("/repo");
         let code = run(&file, &git, &opts(false));
         assert_eq!(code, ExitCode::SUCCESS);
-        let data = file.read_file(Path::new("/repo/package.json")).unwrap();
+        let data = file.read_file("/repo/package.json").unwrap();
         let updated = pkgjson::read(&file, Path::new("/repo/package.json")).unwrap();
         assert_eq!(updated.version, "1.0.1");
         let _ = data;
@@ -209,7 +221,7 @@ mod tests {
         let git  = FakeGitEnv::default().with_repo_root("/repo");
         run(&file, &git, &opts(true));
         // File should be unchanged.
-        let data = file.read_file(Path::new("/repo/package.json")).unwrap();
+        let data = file.read_file("/repo/package.json").unwrap();
         assert_eq!(data, original.as_bytes());
     }
 }
