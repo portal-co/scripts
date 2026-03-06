@@ -40,25 +40,26 @@ async fn main() {
             .collect();
         let ph = placeholder.clone();
         let handle = tokio::spawn(async move {
-            let output = Command::new(&cmd[0])
-                .args(&cmd[1..])
-                .output()
-                .await;
-            match output {
-                Err(e) => eprintln!("forfiles: spawn {:?}: {e}", &cmd[0]),
-                Ok(o) => {
-                    if !o.stdout.is_empty() {
-                        print!("{}", String::from_utf8_lossy(&o.stdout));
-                    }
-                    if !o.stderr.is_empty() {
-                        eprint!("{}", String::from_utf8_lossy(&o.stderr));
-                    }
-                    if !o.status.success() {
-                        eprintln!(
-                            "forfiles: command exited with {}: {}",
-                            o.status,
-                            cmd.join(" ").replace(&ph, "<line>")
-                        );
+            loop {
+                let output = Command::new(&cmd[0]).args(&cmd[1..]).output().await;
+                match output {
+                    Err(e) => eprintln!("forfiles: spawn {:?}: {e}", &cmd[0]),
+                    Ok(o) => {
+                        break {
+                            if !o.stdout.is_empty() {
+                                print!("{}", String::from_utf8_lossy(&o.stdout));
+                            }
+                            if !o.stderr.is_empty() {
+                                eprint!("{}", String::from_utf8_lossy(&o.stderr));
+                            }
+                            if !o.status.success() {
+                                eprintln!(
+                                    "forfiles: command exited with {}: {}",
+                                    o.status,
+                                    cmd.join(" ").replace(&ph, "<line>")
+                                );
+                            }
+                        }
                     }
                 }
             }
