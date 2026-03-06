@@ -411,6 +411,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9eb1aa714776b75c7e67e1da744b81a129b3ff919c8712b5e1b32252c1f07cc7"
 
 [[package]]
+name = "embedded-io-async"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2564b9f813c544241430e147d8bc454815ef9ac998878d30cc3055449f7fd4c0"
+dependencies = [
+ "embedded-io",
+]
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -422,21 +431,23 @@ dependencies = [
 [[package]]
 name = "env-fake"
 version = "0.1.0"
-source = "git+https://github.com/portal-co/os-env-traits.git#e4b413d4859037457298d2373c1d984e69bae5c2"
+source = "git+https://github.com/portal-co/os-env-traits.git#cd4df8ff324315225f42954e07805a08306459a5"
 dependencies = [
  "anyhow",
  "embedded-io",
  "env-traits",
+ "futures",
 ]
 
 [[package]]
 name = "env-real"
 version = "0.1.0"
-source = "git+https://github.com/portal-co/os-env-traits.git#e4b413d4859037457298d2373c1d984e69bae5c2"
+source = "git+https://github.com/portal-co/os-env-traits.git#cd4df8ff324315225f42954e07805a08306459a5"
 dependencies = [
  "anyhow",
  "embedded-io",
  "env-traits",
+ "futures",
  "reqwest",
  "serde",
  "serde_json",
@@ -446,9 +457,11 @@ dependencies = [
 [[package]]
 name = "env-traits"
 version = "0.1.0"
-source = "git+https://github.com/portal-co/os-env-traits.git#e4b413d4859037457298d2373c1d984e69bae5c2"
+source = "git+https://github.com/portal-co/os-env-traits.git#cd4df8ff324315225f42954e07805a08306459a5"
 dependencies = [
  "embedded-io",
+ "embedded-io-async",
+ "futures",
 ]
 
 [[package]]
@@ -531,6 +544,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "futures"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
 ]
 
 [[package]]
