@@ -137,6 +137,10 @@ where
         build_package_json(name, &opts.description).as_bytes(),
     )?;
     file.write_file(
+        &target.join("cabal.project").to_string_lossy(),
+        b"packages: []\n",
+    )?;
+    file.write_file(
         &target.join("README.md").to_string_lossy(),
         format!("# {name}\n\nGenerated repository.\n").as_bytes(),
     )?;
