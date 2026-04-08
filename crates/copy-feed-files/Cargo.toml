@@ -1,0 +1,21 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "copy-feed-files"
+version.workspace = true
+edition.workspace = true
+description = "Copy feed-out.md files from org repos to feed-in.md in current repo"
+
+[[bin]]
+name = "copy-feed-files"
+path = "src/main.rs"
+
+[dependencies]
+env-traits = { workspace = true }
+env-real   = { workspace = true }
+repoutils  = { workspace = true }
+reqwest    = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+
+[dev-dependencies]
+env-fake = { workspace = true }

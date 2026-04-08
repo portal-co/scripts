@@ -8,7 +8,9 @@ members = [
   "crates/agents-zip",
   "crates/scaffold-repo",
   "crates/forfiles",
-  "crates/copy-feed-files", "crates/cleanse",
+  "crates/copy-feed-files",
+  "crates/cleanse",
+  "crates/run",
 ]
 resolver = "2"
 
