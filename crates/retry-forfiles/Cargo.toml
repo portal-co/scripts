@@ -1,14 +1,15 @@
 # AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 [package]
-name        = "forfiles"
+name        = "retry-forfiles"
 version.workspace = true
 edition.workspace = true
-description = "Read lines from stdin, run a command per line in parallel"
+description = "Like forfiles, but retries failing commands until they all succeed or a limit is reached"
 
 [[bin]]
-name = "forfiles"
+name = "retry-forfiles"
 path = "src/main.rs"
 
 [dependencies]
 forfiles-core = { path = "../forfiles-core" }
 tokio         = { workspace = true }
+clap          = { workspace = true }

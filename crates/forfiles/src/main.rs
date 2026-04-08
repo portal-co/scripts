@@ -6,68 +6,35 @@
 //!
 //! Every occurrence of `placeholder` in `command` and `args` is replaced
 //! with the input line before spawning.  All lines are spawned concurrently;
-//! stdout/stderr from each child is forwarded.  A non-zero exit from a child
-//! is reported to stderr but does not abort other children.
+//! stdout/stderr from each child is forwarded.  A non-zero exit from any
+//! child is reported to stderr but does not abort other children.
+//!
+//! Exits 0 when all commands succeeded, 1 otherwise.
 
 use std::io::{self, BufRead};
-use tokio::process::Command;
+use std::process;
 
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() < 2 {
         eprintln!("Usage: forfiles <placeholder> <command> [args...]");
-        std::process::exit(1);
+        process::exit(1);
     }
 
-    let placeholder = args[0].clone();
-    let cmd_template: Vec<String> = args[1..].to_vec();
+    let placeholder = &args[0];
+    let cmd_template = &args[1..];
 
-    let stdin = io::stdin();
-    let lines: Vec<String> = stdin
+    let lines: Vec<String> = io::stdin()
         .lock()
         .lines()
         .filter_map(|l| l.ok())
         .filter(|l| !l.trim().is_empty())
         .collect();
 
-    let mut handles = Vec::with_capacity(lines.len());
+    let failures = forfiles_core::run_all(lines, placeholder, cmd_template).await;
 
-    for line in lines {
-        let cmd: Vec<String> = cmd_template
-            .iter()
-            .map(|s| s.replace(&placeholder, &line))
-            .collect();
-        let ph = placeholder.clone();
-        let handle = tokio::spawn(async move {
-            loop {
-                let output = Command::new(&cmd[0]).args(&cmd[1..]).output().await;
-                match output {
-                    Err(e) => eprintln!("forfiles: spawn {:?}: {e}", &cmd[0]),
-                    Ok(o) => {
-                        break {
-                            if !o.stdout.is_empty() {
-                                print!("{}", String::from_utf8_lossy(&o.stdout));
-                            }
-                            if !o.stderr.is_empty() {
-                                eprint!("{}", String::from_utf8_lossy(&o.stderr));
-                            }
-                            if !o.status.success() {
-                                eprintln!(
-                                    "forfiles: command exited with {}: {}",
-                                    o.status,
-                                    cmd.join(" ").replace(&ph, "<line>")
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        handles.push(handle);
-    }
-
-    for h in handles {
-        let _ = h.await;
+    if failures > 0 {
+        process::exit(1);
     }
 }

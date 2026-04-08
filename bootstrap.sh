@@ -24,6 +24,7 @@ for f in "$SCRIPT_DIR"/inject-key \
           "$SCRIPT_DIR"/scaffold-repo \
           "$SCRIPT_DIR"/copy-feed-files \
           "$SCRIPT_DIR"/forfiles \
+          "$SCRIPT_DIR"/retry-forfiles \
           "$SCRIPT_DIR"/cleanse; do
   if [[ -x "$f" ]]; then
     echo "  $(basename "$f")"

@@ -7,7 +7,9 @@ members = [
   "crates/bump-npm-version",
   "crates/agents-zip",
   "crates/scaffold-repo",
+  "crates/forfiles-core",
   "crates/forfiles",
+  "crates/retry-forfiles",
   "crates/copy-feed-files",
   "crates/cleanse",
   "crates/run",
@@ -53,5 +55,6 @@ env-fake     = { git = "https://github.com/portal-co/os-env-traits.git" }
 env-real     = { git = "https://github.com/portal-co/os-env-traits.git" }
 aiscan       = { git = "https://github.com/portal-co/tiny-rasp.git" }
 keyguard     = { git = "https://github.com/portal-co/tiny-rasp.git" }
-pkgjson      = { path = "crates/pkgjson" }
-repoutils    = { path = "crates/repoutils" }
+pkgjson       = { path = "crates/pkgjson" }
+repoutils     = { path = "crates/repoutils" }
+forfiles-core = { path = "crates/forfiles-core" }

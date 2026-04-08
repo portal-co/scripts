@@ -537,7 +537,16 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 name = "forfiles"
 version = "0.1.0"
 dependencies = [
+ "forfiles-core",
+ "tokio",
+]
+
+[[package]]
+name = "forfiles-core"
+version = "0.1.0"
+dependencies = [
  "anyhow",
+ "tempfile",
  "tokio",
 ]
 
@@ -1439,6 +1448,15 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "retry-forfiles"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "forfiles-core",
+ "tokio",
 ]
 
 [[package]]

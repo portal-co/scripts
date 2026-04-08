@@ -1,0 +1,13 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "forfiles-core"
+version.workspace = true
+edition.workspace = true
+description = "Shared parallel execution engine for forfiles and retry-forfiles"
+
+[dependencies]
+tokio  = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
