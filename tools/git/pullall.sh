@@ -1,2 +1,4 @@
 #!/bin/sh
-ls | forfiles '^' sh -c "cd ^; git pull --no-rebase"
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+ls | run retry-forfiles '^' sh -c "cd ^; git pull --no-rebase"

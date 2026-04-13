@@ -1,2 +1,3 @@
 #!/bin/sh
-curl -sS "https://api.github.com/orgs/$1/repos?per_page=100&sort=updated&type=public" -H 'Accept: application/vnd.github.v3+json' | python3 -c "import sys,json;data=json.load(sys.stdin);print('\n'.join(f'{r[\"name\"]}' for r in data if r[\"fork\"] is False))" | forfiles '^' sh $(dirname $0)/pull.sh $1 '^'
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+curl -sS "https://api.github.com/orgs/$1/repos?per_page=100&sort=updated&type=public" -H 'Accept: application/vnd.github.v3+json' | python3 -c "import sys,json;data=json.load(sys.stdin);print('\n'.join(f'{r[\"name\"]}' for r in data if r[\"fork\"] is False))" | run retry-forfiles '^' sh $(dirname $0)/pull.sh $1 '^'

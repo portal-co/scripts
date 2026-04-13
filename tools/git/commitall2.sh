@@ -1,2 +1,3 @@
 #!/bin/sh
-ls | forfiles '^^' sh -c "cd ^^;forfiles '^' sh -c 'cd ^; git add -A; git commit -m update;'"
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+ls | run forfiles '^^' sh -c "cd ^^;run forfiles '^' sh -c 'cd ^; git add -A; git commit -m update;'"
