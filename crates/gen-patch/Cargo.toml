@@ -1,0 +1,18 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "gen-patch"
+version.workspace = true
+edition.workspace = true
+description = "Generate .cargo/config.toml [patch] sections from local repo checkouts"
+
+[[bin]]
+name = "gen-patch"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap   = { workspace = true }
+toml   = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
