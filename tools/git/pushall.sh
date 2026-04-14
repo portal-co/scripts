@@ -1,3 +1,4 @@
 #!/bin/sh
 # AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
-ls | run retry-forfiles '^' sh -c "cd ^; git push"
+. "$(dirname $0)/bootstrap.sh"
+ls | "$RUN" retry-forfiles '^' sh -c "cd ^; git push"

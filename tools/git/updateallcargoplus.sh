@@ -1,4 +1,5 @@
 #!/bin/sh
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 set -eux
 for i in $(seq 1 10); do
 sh $(dirname $0)/updateallcargo.sh

@@ -5,8 +5,8 @@
 //!   run <binary-name> [args…]
 //!
 //! For each invocation, `run`:
-//!   1. Locates the workspace root by walking up the directory tree until it
-//!      finds a `Cargo.toml` that contains `[workspace]`.
+//!   1. Resolves the workspace root from a path baked in at compile time
+//!      (see `workspace_root()`), so it works from any directory.
 //!   2. Looks for a crate at `<workspace-root>/crates/<binary-name>/`.
 //!   3. Compares the newest mtime among all `.rs` files and `Cargo.toml`
 //!      inside that crate directory against `target/debug/<binary-name>`.
@@ -17,6 +17,10 @@
 //!
 //! This makes it safe to invoke Rust script binaries directly from a shell
 //! during development without remembering to rebuild after edits.
+//!
+//! The workspace root is baked in at compile time via `file!()` combined with
+//! `env!("CARGO_MANIFEST_DIR")`, so `run` works correctly even when invoked
+//! from a directory outside the scripts repository.
 
 use std::env;
 use std::fs;
@@ -40,9 +44,7 @@ fn run() -> Result<()> {
         .ok_or_else(|| anyhow!("Usage: run <binary-name> [args…]"))?;
     let forward: Vec<String> = args.collect();
 
-    let workspace_root = find_workspace_root(
-        &env::current_dir().context("failed to get current directory")?,
-    )?;
+    let workspace_root = workspace_root();
 
     let crate_dir = workspace_root.join("crates").join(&binary);
     let binary_path = workspace_root
@@ -74,27 +76,26 @@ fn run() -> Result<()> {
 
 // ── Workspace root ────────────────────────────────────────────────────────────
 
-/// Walk up from `start` until we find a `Cargo.toml` that contains the
-/// string `[workspace]`, which identifies the workspace root.
-fn find_workspace_root(start: &Path) -> Result<PathBuf> {
-    let mut dir = start.to_path_buf();
-    loop {
-        let candidate = dir.join("Cargo.toml");
-        if candidate.exists() {
-            let contents = fs::read_to_string(&candidate)
-                .with_context(|| format!("reading {}", candidate.display()))?;
-            if contents.contains("[workspace]") {
-                return Ok(dir);
-            }
-        }
-        match dir.parent() {
-            Some(parent) => dir = parent.to_path_buf(),
-            None => bail!(
-                "could not find a workspace Cargo.toml starting from {}",
-                start.display()
-            ),
-        }
-    }
+/// Return the scripts-repo workspace root, determined entirely at compile time.
+///
+/// `file!()` expands to this source file's path relative to the crate root
+/// (e.g. `"src/main.rs"`).  `env!("CARGO_MANIFEST_DIR")` is the absolute path
+/// of the `crates/run/` directory.  Joining them yields the absolute path to
+/// this source file; walking up four directory components reaches the workspace
+/// root regardless of the current working directory at runtime.
+///
+/// Derivation:
+///   CARGO_MANIFEST_DIR          = <workspace>/crates/run
+///   + file!()                   = <workspace>/crates/run/src/main.rs
+///   .parent() × 4              = <workspace>
+fn workspace_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(file!())       // <workspace>/crates/run/src/main.rs
+        .parent().expect("src/main.rs has parent src/")
+        .parent().expect("src/ has parent crates/run/")
+        .parent().expect("crates/run/ has parent crates/")
+        .parent().expect("crates/ has parent (workspace root)")
+        .to_path_buf()
 }
 
 // ── Staleness check ───────────────────────────────────────────────────────────
