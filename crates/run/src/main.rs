@@ -89,8 +89,7 @@ fn run() -> Result<()> {
 ///   + file!()                   = <workspace>/crates/run/src/main.rs
 ///   .parent() × 4              = <workspace>
 fn workspace_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(file!())       // <workspace>/crates/run/src/main.rs
+    Path::new(file!())       // <workspace>/crates/run/src/main.rs
         .parent().expect("src/main.rs has parent src/")
         .parent().expect("src/ has parent crates/run/")
         .parent().expect("crates/run/ has parent crates/")
