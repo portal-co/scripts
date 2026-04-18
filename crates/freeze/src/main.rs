@@ -60,11 +60,17 @@ enum Cmd {
     Check {
         #[arg(long, default_value = "freeze.lock")]
         lockfile: PathBuf,
+        /// Expected SHA-256 of the lockfile itself (embed in CI workflow for end-to-end integrity)
+        #[arg(long, value_name = "SHA256")]
+        lockfile_hash: Option<String>,
     },
     /// Validate checksums then exec a command (fails if any mismatch)
     Exec {
         #[arg(long, default_value = "freeze.lock")]
         lockfile: PathBuf,
+        /// Expected SHA-256 of the lockfile itself (embed in CI workflow for end-to-end integrity)
+        #[arg(long, value_name = "SHA256")]
+        lockfile_hash: Option<String>,
         /// Command and arguments (separated from freeze args by --)
         #[arg(trailing_var_arg = true, required = true)]
         command: Vec<String>,
@@ -99,8 +105,8 @@ fn run() -> Result<()> {
 
     match cli.cmd {
         Cmd::Record { lockfile, files } => cmd_record(&lockfile, &files),
-        Cmd::Check { lockfile } => cmd_check(&lockfile),
-        Cmd::Exec { lockfile, command } => cmd_exec(&lockfile, &command),
+        Cmd::Check { lockfile, lockfile_hash } => cmd_check(&lockfile, lockfile_hash.as_deref()),
+        Cmd::Exec { lockfile, lockfile_hash, command } => cmd_exec(&lockfile, lockfile_hash.as_deref(), &command),
     }
 }
 
@@ -124,13 +130,18 @@ fn cmd_record(lockfile_path: &Path, files: &[PathBuf]) -> Result<()> {
     fs::write(lockfile_path, toml)
         .with_context(|| format!("failed to write '{}'", lockfile_path.display()))?;
 
+    let lockfile_hash = sha256_file(lockfile_path)
+        .with_context(|| format!("failed to hash '{}'", lockfile_path.display()))?;
     println!("freeze: wrote {} entries to '{}'", lock.files.len(), lockfile_path.display());
+    println!("freeze: lockfile hash  {lockfile_hash}");
+    println!("freeze: embed in CI:   --lockfile-hash {lockfile_hash}");
     Ok(())
 }
 
 // ── check ─────────────────────────────────────────────────────────────────────
 
-fn cmd_check(lockfile_path: &Path) -> Result<()> {
+fn cmd_check(lockfile_path: &Path, expected_lockfile_hash: Option<&str>) -> Result<()> {
+    verify_lockfile_hash(lockfile_path, expected_lockfile_hash)?;
     let results = check_lockfile(lockfile_path)?;
     report_results(&results);
 
@@ -144,7 +155,8 @@ fn cmd_check(lockfile_path: &Path) -> Result<()> {
 
 // ── exec ──────────────────────────────────────────────────────────────────────
 
-fn cmd_exec(lockfile_path: &Path, command: &[String]) -> Result<()> {
+fn cmd_exec(lockfile_path: &Path, expected_lockfile_hash: Option<&str>, command: &[String]) -> Result<()> {
+    verify_lockfile_hash(lockfile_path, expected_lockfile_hash)?;
     let results = check_lockfile(lockfile_path)?;
     report_results(&results);
 
@@ -156,6 +168,22 @@ fn cmd_exec(lockfile_path: &Path, command: &[String]) -> Result<()> {
     let (bin, args) = command.split_first().context("no command given")?;
 
     exec_command(bin, args)
+}
+
+fn verify_lockfile_hash(lockfile_path: &Path, expected: Option<&str>) -> Result<()> {
+    let Some(expected) = expected else { return Ok(()) };
+    let actual = sha256_file(lockfile_path)
+        .with_context(|| format!("failed to hash '{}'", lockfile_path.display()))?;
+    if actual != expected {
+        bail!(
+            "lockfile '{}' hash mismatch\n  expected  {}\n  actual    {}",
+            lockfile_path.display(),
+            expected,
+            actual
+        );
+    }
+    eprintln!("  OK (lockfile)  {}  {}", &actual[..16], lockfile_path.display());
+    Ok(())
 }
 
 fn exec_command(bin: &str, args: &[String]) -> Result<()> {
