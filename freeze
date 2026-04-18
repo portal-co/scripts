@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Auto-generated shim: rebuilds the Rust binary when source changes, then execs it.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$SCRIPT_DIR/target/debug/run" "$(basename "$0")" "$@"

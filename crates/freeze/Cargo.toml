@@ -1,0 +1,18 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "freeze"
+version.workspace = true
+edition.workspace = true
+description = "Checksum lockfile: record SHA256 of scripts, validate before exec"
+
+[[bin]]
+name = "freeze"
+path = "src/main.rs"
+
+[dependencies]
+anyhow  = { workspace = true }
+clap    = { workspace = true }
+serde   = { workspace = true }
+toml    = { workspace = true }
+sha2    = { workspace = true }
+hex     = { workspace = true }

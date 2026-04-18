@@ -14,6 +14,7 @@ members = [
   "crates/cleanse",
   "crates/run",
   "crates/gen-patch",
+  "crates/freeze",
 ]
 resolver = "2"
 
@@ -51,6 +52,9 @@ walkdir            = "2"
 tempfile           = "3"
 # TOML parsing
 toml               = "0.8"
+# hashing
+sha2               = "0.10"
+hex                = "0.4"
 
 # env / RASP crates — now in separate repos
 env-traits   = { git = "https://github.com/portal-co/os-env-traits.git" }
