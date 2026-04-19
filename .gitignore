@@ -6,3 +6,13 @@ target
 check_ai_key
 inject_key
 bump_npm_version
+# Generated shims (produced by bootstrap.sh)
+tools/agents-zip
+tools/bump-npm-version
+tools/cleanse
+tools/copy-feed-files
+tools/forfiles
+tools/freeze
+tools/inject-key
+tools/retry-forfiles
+tools/scaffold-repo
