@@ -15,6 +15,7 @@ members = [
   "crates/run",
   "crates/gen-patch",
   "crates/freeze",
+  "crates/swap-pkg-paths",
 ]
 resolver = "2"
 

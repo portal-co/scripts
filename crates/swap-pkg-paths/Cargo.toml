@@ -1,0 +1,18 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "swap-pkg-paths"
+version.workspace = true
+edition.workspace = true
+description = "Rewrite package.json dependency specifiers by swapping between two states (self-inverting)"
+
+[[bin]]
+name = "swap-pkg-paths"
+path = "src/main.rs"
+
+[dependencies]
+anyhow     = { workspace = true }
+clap       = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

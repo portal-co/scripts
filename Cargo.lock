@@ -1781,6 +1781,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "swap-pkg-paths"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2778,8 +2788,84 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "pit-core"
-version = "0.5.0-alpha.1"
+name = "dex-bytecode"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "osctx"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-dex"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-link-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-linker"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-memory"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-mips"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-module-builder"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-module-target"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-object"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-ordering"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-powerpc"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-reach"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-riscv"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-schedule"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-traps"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-wasm-helpers"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "speet-x86_64"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "wasm-layout"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "yecta"
+version = "0.1.0"
 
 [[patch.unused]]
 name = "portal-pc-waffle"
@@ -2828,6 +2914,14 @@ version = "0.6.0-alpha.1"
 [[patch.unused]]
 name = "portal-pc-waffle-passes-shared"
 version = "0.6.0-alpha.1"
+
+[[patch.unused]]
+name = "portal-solutions-swibb"
+version = "0.6.0-alpha.1"
+
+[[patch.unused]]
+name = "pit-core"
+version = "0.5.0-alpha.1"
 
 [[patch.unused]]
 name = "portal-jsc-common"
@@ -2926,84 +3020,8 @@ name = "dreamcompiler-minibc-interp"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "dex-bytecode"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "osctx"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-dex"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-link-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-linker"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-memory"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-mips"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-module-builder"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-module-target"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-object"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-ordering"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-powerpc"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-reach"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-riscv"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-schedule"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-traps"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-wasm-helpers"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "speet-x86_64"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "wasm-layout"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "yecta"
-version = "0.1.0"
+name = "portal-pc-asm-common"
+version = "0.1.1"
 
 [[patch.unused]]
 name = "ephemera"
@@ -3114,9 +3132,69 @@ name = "portal-solutions-asm-x86-64-shim"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "portal-pc-asm-common"
-version = "0.1.1"
+name = "ast-traits"
+version = "0.1.0"
 
 [[patch.unused]]
-name = "portal-solutions-swibb"
-version = "0.6.0-alpha.1"
+name = "cfg-traits"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "register-machine-traits"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "sift-trait"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "siftify"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "ssa-canon"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-cc"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-impls"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-pliron-compat"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "ssa-reloop"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-reloop2"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-rust"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-trace"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "ssa-traits"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "ssa-translation"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "tac-traits"
+version = "0.2.3"
+
+[[patch.unused]]
+name = "type-onion"
+version = "0.2.3"
