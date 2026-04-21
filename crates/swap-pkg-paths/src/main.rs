@@ -35,6 +35,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use serde_json::Value;
+use swap_pkg_paths::collect_package_jsons;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -70,8 +71,6 @@ const DEP_FIELDS: &[&str] = &[
     "bundledDependencies",
     "bundleDependencies",
 ];
-
-const SKIP_DIRS: &[&str] = &["node_modules", ".git", "target", ".cache"];
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -230,28 +229,6 @@ pub fn apply_swap(doc: &mut Value, swap: &HashMap<String, String>) -> usize {
     }
 
     count
-}
-
-// ── Directory walker ──────────────────────────────────────────────────────────
-
-fn collect_package_jsons(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = match fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if SKIP_DIRS.contains(&name) || name.starts_with('.') {
-                continue;
-            }
-            collect_package_jsons(&path, out);
-        } else if path.file_name().and_then(|n| n.to_str()) == Some("package.json") {
-            out.push(path);
-        }
-    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
