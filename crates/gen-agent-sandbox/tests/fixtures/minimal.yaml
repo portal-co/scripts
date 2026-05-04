@@ -1,0 +1,16 @@
+gate:
+  env: TEST_GATE
+  value: "1"
+
+bash:
+  tool_names:
+    - bash
+    - Bash
+  deny_substrings:
+    - __DENY_ME__
+  deny_regexes: []
+  command_prefix: "wrap "
+
+prompts:
+  session_fragment: "SESSION_CTX"
+  user_submit_fragment: "USER_CTX"

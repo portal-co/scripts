@@ -1,0 +1,59 @@
+# Example portal agent sandbox policy (Pi Coding Agent + Claude Code hooks).
+# Generate artifacts: gen-agent-sandbox --config templates/agent-sandbox/portal-sandbox.example.yaml --out-dir ./out/sandbox
+
+meta:
+  # Used in generated plugin.json when --emit-plugin-json is passed.
+  name: portal-agent-sandbox
+  version: "0.1.0"
+  description: "Restrict bash and inject sandbox prompts when the gate env is set."
+
+# When the environment variable does not equal `value`, generated Pi code registers
+# no handlers; the Claude shim exits 0 immediately (tool calls / prompts unchanged).
+gate:
+  env: PORTAL_AGENT_SANDBOX
+  value: "1"
+
+bash:
+  # Claude tool name is typically `Bash`; Pi uses `bash`.
+  tool_names:
+    - bash
+    - Bash
+  # First-match deny: if the command contains any of these substrings after optional
+  # parsing, the tool call is blocked.
+  deny_substrings:
+    - "rm -rf /"
+  # JavaScript regex sources (applied with `new RegExp`). Empty list is fine.
+  deny_regexes: []
+  # When non-empty, prepended to allowed commands (after connection-script wrapping).
+  command_prefix: "cleanse "
+  # When the command contains any trigger substring, prepend `path` (with a space).
+  # Use for jump-host wrappers or audited connection scripts.
+  connection_script:
+    path: /usr/local/bin/portal-ssh-wrap
+    trigger_substrings:
+      - "ssh "
+      - "scp "
+
+prompts:
+  # Claude: SessionStart + UserPromptSubmit additionalContext; Pi: notify on session_start
+  # and append via before_agent_start (system prompt chain).
+  session_fragment: |
+    [portal-sandbox] This session is running with PORTAL_AGENT_SANDBOX=1.
+    Prefer the audited connection script for remote commands when triggers match.
+  user_submit_fragment: |
+    For packaging work, run `scripts/verify.sh` before claiming success.
+
+# Optional external normalizer: argv[0] is the program; remaining args are fixed;
+# the current bash command is written to the child stdin; stdout (trimmed) replaces
+# the command for deny/prefix checks. If the child exits non-zero, the original
+# command is kept. Omit this block or set `command: []` to disable.
+# optional_shell_parser:
+#   command:
+#     - node
+#     - scripts/example-shell-parse-stub.mjs
+
+# Optional: argv for how the Claude shim runs the hook `.ts` (default: npx --yes tsx).
+# claude_ts_runner:
+#   - pnpm
+#   - exec
+#   - tsx

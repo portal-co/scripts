@@ -45,6 +45,7 @@ The Rust workspace (`Cargo.toml`) declares Rust rewrites of most of the Go tools
 | `scaffold-repo` | `scaffold-repo` | Scaffold a new Cargo + npm workspace |
 | `copy-feed-files` | `copy-feed-files` | Copy feed files across org repos |
 | `forfiles` | `forfiles` | Parallel per-line command runner |
+| `gen-agent-sandbox` | `gen-agent-sandbox` | Generate Pi + Claude Code sandbox extensions from YAML ([crate README](crates/gen-agent-sandbox/README.md)) |
 | `repoutils` | (library) | Shared repo utility helpers |
 | `pkgjson` | (library) | `package.json` reading and version bumping |
 
