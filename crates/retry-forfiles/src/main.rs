@@ -6,10 +6,14 @@
 //!   retry-forfiles [OPTIONS] <placeholder> <command> [args...]
 //!
 //! Options:
-//!   --attempts <N>   Maximum number of attempts per line (default: 5).
-//!                    Must be >= 1.  Use 1 for identical behaviour to forfiles.
-//!   --delay <SECS>   Seconds to wait between retry rounds (default: 1.0).
-//!                    Fractional values are accepted (e.g. 0.5).
+//!   --attempts <N>     Maximum number of attempts per line (default: 5).
+//!                      Must be >= 1.  Use 1 for identical behaviour to forfiles.
+//!   --delay <SECS>     Seconds to wait between retry rounds (default: 1.0).
+//!                      Fractional values are accepted (e.g. 0.5).
+//!   -C, --cwd <PATH>   Path template applied as each child's working
+//!                      directory.  Occurrences of `<placeholder>` in PATH
+//!                      are substituted per-line before chdir.  When
+//!                      omitted, children inherit the parent's cwd.
 //!
 //! Every occurrence of `placeholder` in `command` and `args` is replaced with
 //! the input line.  All lines are run concurrently within each round.  After
@@ -49,6 +53,11 @@ struct Cli {
     #[arg(long, default_value_t = 1.0)]
     delay: f64,
 
+    /// Path template used as each child's working directory.  Occurrences of
+    /// the placeholder are substituted per-line before chdir.
+    #[arg(short = 'C', long = "cwd")]
+    cwd: Option<String>,
+
     /// The placeholder string that is substituted with each input line.
     placeholder: String,
 
@@ -83,6 +92,7 @@ async fn main() {
         lines,
         &cli.placeholder,
         &cli.command,
+        cli.cwd.as_deref(),
         cli.attempts,
         delay,
     )

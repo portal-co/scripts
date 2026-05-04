@@ -13,10 +13,14 @@ When acting as an agent, you can use these tools to perform complex multi-repo o
 
 ### Core Utilities
 
-#### [forfiles](./forfiles/forfiles.go)
-A Go utility that reads lines from `stdin` and executes a command for each line in parallel.
-- **Usage**: `ls | go run tools/forfiles/forfiles.go '^' <command> ^ <args>`
-- **Placeholder**: `^` is replaced by the input line.
+#### [forfiles](./forfiles)
+A workspace binary (Rust) that reads lines from `stdin` and executes a command for each line in parallel.
+- **Usage**: `ls | ./tools/forfiles [OPTIONS] '^' <command> [args...]`
+- **Placeholder**: `^` is replaced by the input line in both `command`/`args` and the `--cwd` template.
+- **Options**:
+  - `-C, --cwd <PATH>` &nbsp;Path template applied as each child's working directory; occurrences of the placeholder in `PATH` are substituted per-line. Replaces the old `sh -c "cd ^; …"` wrapper used throughout `tools/git/`.
+
+A retrying companion lives at [`./retry-forfiles`](./retry-forfiles); it accepts the same `-C / --cwd` flag plus `--attempts` and `--delay`.
 
 ### Git & Repository Management
 

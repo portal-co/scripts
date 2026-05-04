@@ -52,11 +52,20 @@ pub struct LineResult {
 /// Spawn one task per line, wait for all to finish, print their output,
 /// and return the number of lines that failed.
 ///
+/// `cwd_template`, when `Some`, is a path template whose occurrences of
+/// `placeholder` are substituted per-line and applied as the spawned child's
+/// working directory.  When `None`, children inherit the parent's cwd.
+///
 /// Output from all tasks is printed in the order results arrive (i.e.
 /// interleaved by completion time, not input order) so that long-running
 /// commands do not suppress shorter ones.
-pub async fn run_all(lines: Vec<String>, placeholder: &str, cmd_template: &[String]) -> usize {
-    let results = spawn_all(lines, placeholder, cmd_template).await;
+pub async fn run_all(
+    lines: Vec<String>,
+    placeholder: &str,
+    cmd_template: &[String],
+    cwd_template: Option<&str>,
+) -> usize {
+    let results = spawn_all(lines, placeholder, cmd_template, cwd_template).await;
     let mut failures = 0;
     for r in results {
         print_result(&r, cmd_template, placeholder);
@@ -81,6 +90,7 @@ pub async fn run_all_until_success(
     lines: Vec<String>,
     placeholder: &str,
     cmd_template: &[String],
+    cwd_template: Option<&str>,
     max_attempts: usize,
     delay: Duration,
 ) -> usize {
@@ -102,7 +112,7 @@ pub async fn run_all_until_success(
             }
         }
 
-        let results = spawn_all(pending.clone(), placeholder, cmd_template).await;
+        let results = spawn_all(pending.clone(), placeholder, cmd_template, cwd_template).await;
 
         let mut still_failing: Vec<String> = Vec::new();
         let mut round_failures = 0;
@@ -144,6 +154,7 @@ async fn spawn_all(
     lines: Vec<String>,
     placeholder: &str,
     cmd_template: &[String],
+    cwd_template: Option<&str>,
 ) -> Vec<LineResult> {
     let mut handles = Vec::with_capacity(lines.len());
 
@@ -152,10 +163,16 @@ async fn spawn_all(
             .iter()
             .map(|s| s.replace(placeholder, &line))
             .collect();
+        let cwd: Option<String> = cwd_template.map(|t| t.replace(placeholder, &line));
         let line_clone = line.clone();
 
         let handle = tokio::spawn(async move {
-            match Command::new(&cmd[0]).args(&cmd[1..]).output().await {
+            let mut command = Command::new(&cmd[0]);
+            command.args(&cmd[1..]);
+            if let Some(dir) = &cwd {
+                command.current_dir(dir);
+            }
+            match command.output().await {
                 Err(e) => {
                     // Spawn failure — treat as a failed run so the caller can retry.
                     LineResult {
@@ -229,14 +246,14 @@ mod tests {
     #[tokio::test]
     async fn run_all_succeeds_returns_zero_failures() {
         let lines = vec!["a".into(), "b".into(), "c".into()];
-        let failures = run_all(lines, "^", &echo_cmd("^")).await;
+        let failures = run_all(lines, "^", &echo_cmd("^"), None).await;
         assert_eq!(failures, 0);
     }
 
     #[tokio::test]
     async fn run_all_counts_failures() {
         let lines = vec!["x".into()];
-        let failures = run_all(lines, "^", &fail_cmd()).await;
+        let failures = run_all(lines, "^", &fail_cmd(), None).await;
         assert_eq!(failures, 1);
     }
 
@@ -247,6 +264,7 @@ mod tests {
             lines,
             "^",
             &echo_cmd("^"),
+            None,
             3,
             Duration::ZERO,
         )
@@ -262,6 +280,7 @@ mod tests {
             lines,
             "^",
             &fail_cmd(),
+            None,
             3,
             Duration::ZERO,
         )
@@ -293,6 +312,7 @@ mod tests {
             lines,
             "^",
             &cmd_template,
+            None,
             5,
             Duration::ZERO,
         )
@@ -312,12 +332,62 @@ mod tests {
     async fn placeholder_substituted_in_all_positions() {
         // cmd = ["echo", "^-^"] with line "x" should produce "x-x"
         let cmd = vec!["echo".into(), "^-^".into()];
-        let results = spawn_all(vec!["x".into()], "^", &cmd).await;
+        let results = spawn_all(vec!["x".into()], "^", &cmd, None).await;
         assert_eq!(results.len(), 1);
         assert!(results[0].success);
         assert_eq!(
             String::from_utf8_lossy(&results[0].stdout).trim(),
             "x-x"
+        );
+    }
+
+    #[tokio::test]
+    async fn cwd_template_substituted_per_line() {
+        // Make two sibling subdirs each containing a marker file with their
+        // own name, then run `cat marker` with `--cwd` set to the line.
+        // Each child should print its own subdir name.
+        let dir = tempfile::tempdir().unwrap();
+        for sub in ["a", "b"] {
+            let sd = dir.path().join(sub);
+            std::fs::create_dir(&sd).unwrap();
+            std::fs::write(sd.join("marker"), sub).unwrap();
+        }
+
+        // cwd_template uses `^` placeholder, resolved relative to dir.path().
+        let cwd_template = format!("{}/^", dir.path().to_str().unwrap());
+        let cmd = vec!["cat".into(), "marker".into()];
+        let results = spawn_all(
+            vec!["a".into(), "b".into()],
+            "^",
+            &cmd,
+            Some(&cwd_template),
+        )
+        .await;
+
+        assert_eq!(results.len(), 2);
+        for r in &results {
+            assert!(r.success, "spawn failed for line {}", r.line);
+            assert_eq!(
+                String::from_utf8_lossy(&r.stdout).trim(),
+                r.line,
+                "child for line {} read the wrong marker",
+                r.line
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn cwd_template_none_inherits() {
+        // With cwd_template = None, children inherit the parent's cwd, so
+        // running `pwd` should yield the same directory the test process is in.
+        let expected = std::env::current_dir().unwrap();
+        let cmd = vec!["pwd".into()];
+        let results = spawn_all(vec!["ignored".into()], "^", &cmd, None).await;
+        assert_eq!(results.len(), 1);
+        assert!(results[0].success);
+        assert_eq!(
+            String::from_utf8_lossy(&results[0].stdout).trim(),
+            expected.to_str().unwrap()
         );
     }
 }

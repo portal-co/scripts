@@ -2,7 +2,13 @@
 //! Read lines from stdin and execute a command per line in parallel.
 //!
 //! Usage:
-//!   forfiles <placeholder> <command> [args...]
+//!   forfiles [OPTIONS] <placeholder> <command> [args...]
+//!
+//! Options:
+//!   -C, --cwd <PATH>   Path template applied as each child's working
+//!                      directory.  Occurrences of `<placeholder>` in PATH
+//!                      are substituted per-line before chdir.  When
+//!                      omitted, children inherit the parent's cwd.
 //!
 //! Every occurrence of `placeholder` in `command` and `args` is replaced
 //! with the input line before spawning.  All lines are spawned concurrently;
@@ -14,16 +20,30 @@
 use std::io::{self, BufRead};
 use std::process;
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "forfiles",
+    about = "Read lines from stdin, run a command per line in parallel"
+)]
+struct Cli {
+    /// Path template used as each child's working directory.  Occurrences of
+    /// the placeholder are substituted per-line before chdir.
+    #[arg(short = 'C', long = "cwd")]
+    cwd: Option<String>,
+
+    /// The placeholder string that is substituted with each input line.
+    placeholder: String,
+
+    /// Command and arguments (occurrences of placeholder are substituted).
+    #[arg(trailing_var_arg = true, required = true)]
+    command: Vec<String>,
+}
+
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.len() < 2 {
-        eprintln!("Usage: forfiles <placeholder> <command> [args...]");
-        process::exit(1);
-    }
-
-    let placeholder = &args[0];
-    let cmd_template = &args[1..];
+    let cli = Cli::parse();
 
     let lines: Vec<String> = io::stdin()
         .lock()
@@ -32,7 +52,13 @@ async fn main() {
         .filter(|l| !l.trim().is_empty())
         .collect();
 
-    let failures = forfiles_core::run_all(lines, placeholder, cmd_template).await;
+    let failures = forfiles_core::run_all(
+        lines,
+        &cli.placeholder,
+        &cli.command,
+        cli.cwd.as_deref(),
+    )
+    .await;
 
     if failures > 0 {
         process::exit(1);

@@ -30,6 +30,12 @@ cargo build -p forfiles
 | `command` | Command to run |
 | `args...` | Arguments for the command; any arg equal to `placeholder` is substituted |
 
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `-C, --cwd <PATH>` | Path template applied as each child's working directory. Occurrences of the placeholder in `PATH` are substituted per-line before chdir. Replaces the old `sh -c "cd <line>; …"` pattern. |
+
 ## Usage
 
 ### Run a command for every repo in a list
@@ -56,6 +62,18 @@ ls -d */ | ./forfiles {} cargo update --manifest-path {}/Cargo.toml
 ```bash
 find . -name '*.json' | ./forfiles {} jq '.' {}
 ```
+
+### Run a command inside each subdirectory
+
+Use `-C` instead of wrapping the command in `sh -c "cd <line>; …"`:
+
+```bash
+ls | ./forfiles -C '{}' '{}' git status --short
+```
+
+The placeholder is substituted in both the cwd template and any matching
+arguments, so commands that need the line value as an argument continue to
+work too.
 
 ## Behavior
 

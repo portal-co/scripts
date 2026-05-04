@@ -12,3 +12,4 @@ path = "src/main.rs"
 [dependencies]
 forfiles-core = { path = "../forfiles-core" }
 tokio         = { workspace = true }
+clap          = { workspace = true }

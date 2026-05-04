@@ -28,6 +28,7 @@ cargo build -p retry-forfiles
 | `--attempts <n>` | 3 | Maximum attempts per input line before giving up |
 | `--delay <ms>` | 1000 | Milliseconds to wait between retries |
 | `--backoff` | false | Exponential backoff (doubles delay on each retry) |
+| `-C, --cwd <PATH>` | _(inherit)_ | Path template applied as each child's working directory. Occurrences of the placeholder in `PATH` are substituted per-line before chdir. Replaces the old `sh -c "cd <line>; …"` pattern. |
 
 ## Arguments
 
@@ -53,6 +54,14 @@ cat packages.txt | ./retry-forfiles --attempts 3 --backoff {} npm publish {}
 
 ```bash
 cat ids.txt | ./retry-forfiles --attempts 4 --delay 2000 {} curl -s "https://api.example.com/items/{}"
+```
+
+### Pull every repo (cwd per line)
+
+Use `-C` instead of wrapping the command in `sh -c "cd <line>; …"`:
+
+```bash
+ls | ./retry-forfiles -C '{}' '{}' git pull --no-rebase
 ```
 
 ## Behavior
