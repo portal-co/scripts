@@ -21,6 +21,15 @@
 //! The workspace root is baked in at compile time via `file!()` combined with
 //! `env!("CARGO_MANIFEST_DIR")`, so `run` works correctly even when invoked
 //! from a directory outside the scripts repository.
+//!
+//! ## `CARGO_TARGET_DIR` in Cursor
+//!
+//! Agent-integrated shells may set `CARGO_TARGET_DIR` to a sandbox cache path.
+//! That diverges from the workspace-relative `target/debug/<name>` paths this
+//! binary uses for staleness checks and exec.  Nested `cargo build` calls
+//! therefore clear `CARGO_TARGET_DIR` when a Cursor agent (or sandbox) layout
+//! is detected — see `should_clear_cargo_target_dir_for_nested_cargo` and
+//! [docs/design/cursor-cargo-target-dir.md](../../../docs/design/cursor-cargo-target-dir.md).
 
 use std::env;
 use std::fs;
@@ -35,6 +44,23 @@ fn main() {
         eprintln!("run: {e}");
         process::exit(1);
     }
+}
+
+/// Cursor agent terminals often export `CARGO_TARGET_DIR` to a sandbox cache
+/// under `/var/folders/.../cursor-sandbox-cache/...`, which breaks `run`'s
+/// assumption that artifacts live at `<workspace>/target/debug/<binary>`.
+/// When we detect that environment, strip the variable for nested `cargo`
+/// invocations so builds land in the workspace `target/` tree.
+fn should_clear_cargo_target_dir_for_nested_cargo() -> bool {
+    if env::var_os("CURSOR_AGENT").is_some_and(|v| !v.is_empty()) {
+        return true;
+    }
+    if env::var_os("CURSOR_TRACE_ID").is_some_and(|v| !v.is_empty()) {
+        return true;
+    }
+    env::var("CARGO_TARGET_DIR")
+        .ok()
+        .is_some_and(|p| p.contains("cursor-sandbox-cache"))
 }
 
 fn run() -> Result<()> {
@@ -157,11 +183,12 @@ fn visit_source_files(dir: &Path, cb: &mut impl FnMut(&Path)) {
 /// Run `cargo build -p <binary>` inside `workspace_root`, forwarding
 /// stdout and stderr to the terminal.  Fails if the process exits non-zero.
 fn build(workspace_root: &Path, binary: &str) -> Result<()> {
-    let status = Command::new("cargo")
-        .args(["build", "-p", binary])
-        .current_dir(workspace_root)
-        .status()
-        .context("failed to spawn `cargo build`")?;
+    let mut cmd = Command::new("cargo");
+    cmd.args(["build", "-p", binary]).current_dir(workspace_root);
+    if should_clear_cargo_target_dir_for_nested_cargo() {
+        cmd.env_remove("CARGO_TARGET_DIR");
+    }
+    let status = cmd.status().context("failed to spawn `cargo build`")?;
 
     if !status.success() {
         bail!("`cargo build -p {binary}` failed with {status}");

@@ -68,6 +68,15 @@ The workspace root is baked in at compile time via `env!("CARGO_MANIFEST_DIR")`,
 so `run` works correctly when invoked from any directory — not just the workspace
 root.
 
+## Cursor agent shells and `CARGO_TARGET_DIR`
+
+Some Cursor sessions set `CARGO_TARGET_DIR` to a sandbox cache, which would
+misalign `cargo build` output with the hard-coded `target/debug/<binary>` path.
+The `run` binary removes that variable for its nested `cargo` child only when
+it detects Cursor / sandbox heuristics. For background and alternatives
+(worktrees, explicit sandboxes), see
+[docs/design/cursor-cargo-target-dir.md](../../../docs/design/cursor-cargo-target-dir.md).
+
 ## Creating a new shim
 
 When adding a new crate `crates/my-tool/`:
