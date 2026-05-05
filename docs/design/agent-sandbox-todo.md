@@ -17,3 +17,4 @@ This note lists **harder or different** agent surfaces than the Pi Coding Agent 
 - **Regenerate** sandbox artifacts after upgrading Pi (`@mariozechner/pi-coding-agent`) or Claude Code when hook stdin/stdout schemas change.
 - **Enterprise Claude Code**: confirm whether local or plugin hooks are allowed versus `allowManagedHooksOnly` before relying on generated `hooks.json`.
 - **Hermetic shell parsing**: the YAML `optional_shell_parser` hook point is intended for a stricter parser (for example a small Rust or Node helper); regex/substring rules are intentionally shallow.
+- **Script wrapper requirement** (`bash.script_wrapper`): prefix matching only; users who need `bash -c`, `env`, or quoted paths must add explicit `accepted_invocations` entries for those forms or accept denials.

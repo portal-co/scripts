@@ -51,6 +51,18 @@ pub struct BashSection {
     #[serde(default)]
     pub command_prefix: Option<String>,
     pub connection_script: Option<ConnectionScript>,
+    /// When `required`, every bash command must begin with one of `accepted_invocations`
+    /// after trim-start (conservative; not a full shell parse).
+    pub script_wrapper: Option<ScriptWrapperSection>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ScriptWrapperSection {
+    #[serde(default)]
+    pub required: bool,
+    #[serde(default)]
+    pub accepted_invocations: Vec<String>,
 }
 
 fn default_bash_tool_names() -> Vec<String> {
@@ -92,6 +104,8 @@ pub struct PolicyEmbed {
     pub command_prefix: Option<String>,
     pub connection_script_path: Option<String>,
     pub connection_script_triggers: Vec<String>,
+    pub script_wrapper_required: bool,
+    pub script_wrapper_prefixes: Vec<String>,
     pub session_fragment: Option<String>,
     pub user_submit_fragment: Option<String>,
     pub shell_parser_argv: Option<Vec<String>>,
@@ -101,6 +115,27 @@ pub fn load_config(path: &Path) -> Result<Config> {
     let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     let c: Config = serde_yaml::from_str(&raw).context("parse YAML")?;
     Ok(c)
+}
+
+/// Ensures `bash.script_wrapper` is coherent when enabled.
+pub fn validate_config(config: &Config) -> Result<()> {
+    if let Some(bash) = &config.bash {
+        if let Some(sw) = &bash.script_wrapper {
+            if sw.required {
+                let n = sw
+                    .accepted_invocations
+                    .iter()
+                    .filter(|s| !s.trim().is_empty())
+                    .count();
+                if n == 0 {
+                    anyhow::bail!(
+                        "bash.script_wrapper.required is true but accepted_invocations has no non-empty entries"
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn normalize_prefix(s: &Option<String>) -> Option<String> {
@@ -129,6 +164,18 @@ pub fn build_policy_embed(config: &Config) -> PolicyEmbed {
             Some(s.command.clone())
         }
     });
+    let (script_wrapper_required, script_wrapper_prefixes) = match &bash.script_wrapper {
+        Some(sw) if sw.required => {
+            let prefs: Vec<String> = sw
+                .accepted_invocations
+                .iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            (true, prefs)
+        }
+        _ => (false, Vec::new()),
+    };
     PolicyEmbed {
         gate_env: config.gate.env.clone(),
         gate_value: config.gate.value.clone(),
@@ -142,6 +189,8 @@ pub fn build_policy_embed(config: &Config) -> PolicyEmbed {
         command_prefix: normalize_prefix(&bash.command_prefix),
         connection_script_path: csp,
         connection_script_triggers: cst,
+        script_wrapper_required,
+        script_wrapper_prefixes,
         session_fragment: prompts
             .session_fragment
             .clone()
@@ -202,6 +251,7 @@ pub struct EmitOpts {
 }
 
 pub fn emit(config: &Config, out_dir: &Path, source_config: &Path, opts: EmitOpts) -> Result<()> {
+    validate_config(config)?;
     if opts.emit_plugin_json && opts.pi_only {
         anyhow::bail!("--emit-plugin-json requires Claude outputs (omit --pi-only)");
     }

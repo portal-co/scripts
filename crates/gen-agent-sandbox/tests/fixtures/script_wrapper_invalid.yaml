@@ -1,0 +1,8 @@
+gate:
+  env: TEST_GATE
+  value: "1"
+
+bash:
+  script_wrapper:
+    required: true
+    accepted_invocations: []

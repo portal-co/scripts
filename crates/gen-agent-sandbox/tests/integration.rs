@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use gen_agent_sandbox::{build_policy_embed, emit, load_config, EmitOpts};
+use gen_agent_sandbox::{build_policy_embed, emit, load_config, validate_config, EmitOpts};
 use tempfile::tempdir;
 
 fn fixture_path() -> PathBuf {
@@ -62,6 +62,58 @@ fn build_policy_embed_defaults() {
     assert_eq!(p.gate_env, "TEST_GATE");
     assert_eq!(p.gate_value, "1");
     assert!(p.bash_tool_names.contains(&"bash".into()));
+    assert!(!p.script_wrapper_required);
+    assert!(p.script_wrapper_prefixes.is_empty());
+}
+
+#[test]
+fn script_wrapper_invalid_config_errors() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("script_wrapper_invalid.yaml");
+    let cfg = load_config(&path).unwrap();
+    assert!(validate_config(&cfg).is_err());
+    let dir = tempdir().unwrap();
+    assert!(emit(
+        &cfg,
+        dir.path(),
+        &path,
+        EmitOpts {
+            pi_only: false,
+            claude_only: false,
+            emit_plugin_json: false,
+        },
+    )
+    .is_err());
+}
+
+#[test]
+fn script_wrapper_emit_embeds_prefixes() {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("script_wrapper.yaml");
+    let dir = tempdir().unwrap();
+    let cfg = load_config(&path).unwrap();
+    validate_config(&cfg).unwrap();
+    emit(
+        &cfg,
+        dir.path(),
+        &path,
+        EmitOpts {
+            pi_only: false,
+            claude_only: false,
+            emit_plugin_json: false,
+        },
+    )
+    .unwrap();
+    let hook = fs::read_to_string(dir.path().join("portal-claude-sandbox-hook.ts")).unwrap();
+    assert!(hook.contains("scriptWrapperRequired"));
+    assert!(hook.contains("./scripts/wrap.sh"));
+    assert!(hook.contains("/opt/portal/wrap.sh"));
+    let pi = fs::read_to_string(dir.path().join("portal-pi-sandbox.ts")).unwrap();
+    assert!(pi.contains("scriptWrapperDenial"));
 }
 
 #[test]

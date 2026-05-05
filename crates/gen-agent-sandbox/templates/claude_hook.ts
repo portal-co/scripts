@@ -21,6 +21,19 @@ function isBashTool(name: string | undefined): boolean {
   return POLICY.bashToolNames.includes(name);
 }
 
+/** Conservative: command must start with one of configured prefixes (trim-start only). */
+function scriptWrapperDenial(cmd: string): string | null {
+  if (!POLICY.scriptWrapperRequired) return null;
+  const t = cmd.trimStart();
+  for (const p of POLICY.scriptWrapperPrefixes) {
+    if (p && t.startsWith(p)) return null;
+  }
+  return (
+    "Denied: shell command must begin with an accepted script-wrapper invocation " +
+    "(portal-sandbox). No prefix matched; this check is intentionally shallow and does not parse shell syntax."
+  );
+}
+
 function denyReason(cmd: string): string | null {
   for (const s of POLICY.denySubstrings) {
     if (s && cmd.includes(s)) return `Denied: command contains blocked substring: ${s}`;
@@ -58,6 +71,19 @@ function handlePreToolUse(input: any): void {
   const ti = input.tool_input || {};
   let cmd = typeof ti.command === "string" ? ti.command : "";
   cmd = parseCommand(cmd);
+  const wrapDeny = scriptWrapperDenial(cmd);
+  if (wrapDeny) {
+    console.log(
+      JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "deny",
+          permissionDecisionReason: wrapDeny,
+        },
+      }),
+    );
+    return;
+  }
   const reason = denyReason(cmd);
   if (reason) {
     console.log(

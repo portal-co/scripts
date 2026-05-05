@@ -45,6 +45,10 @@ Copy `portal-pi-sandbox.ts` to `~/.pi/agent/extensions/` or `.pi/extensions/` in
 
 See [templates/agent-sandbox/schema.md](../../templates/agent-sandbox/schema.md) and [templates/agent-sandbox/portal-sandbox.example.yaml](../../templates/agent-sandbox/portal-sandbox.example.yaml).
 
+### Script wrapper requirement (`bash.script_wrapper`)
+
+When `required: true`, generated hooks **deny** bash commands whose text does not start with one of the `accepted_invocations` prefixes (after `trimStart`). This avoids claiming full shell safety: compound commands, `bash -c`, `env`, etc. will **not** match a simple `./wrap.sh` prefix unless you add explicit prefixes for those forms. Pair with prompts so the model knows to call only the wrapper.
+
 ## Related design notes
 
 - [docs/design/agent-sandbox-todo.md](../../docs/design/agent-sandbox-todo.md) — harder targets (Cursor, CI agents, etc.).

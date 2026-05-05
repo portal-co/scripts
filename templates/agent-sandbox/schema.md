@@ -26,6 +26,18 @@ Both fields are strings. Matching is literal (`process.env[env] === value` in Pi
 | `deny_regexes` | string[] | Block if any regex matches (JS `RegExp`). |
 | `command_prefix` | string | Optional; prepended to allowed commands. |
 | `connection_script` | object | Optional `path` and `trigger_substrings[]`; prepends `path` + space when any trigger matches. |
+| `script_wrapper` | object | Optional gate on **how** bash is invoked (see below). |
+
+### `bash.script_wrapper`
+
+When `required` is true, every bash command (after optional `optional_shell_parser`) must **begin with** one of the strings in `accepted_invocations` after leading whitespace is stripped (`trimStart`). This is intentionally **conservative**: it does not parse shell grammar, so forms like `bash ./wrap.sh` or `env X=1 ./wrap.sh` do **not** match `./wrap.sh` unless you list those prefixes explicitly.
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `required` | bool | Default false. If true, `accepted_invocations` must contain at least one non-empty string (validated at emit time). |
+| `accepted_invocations` | string[] | Literal prefixes allowed at the start of the command (e.g. repo-relative and absolute paths to the same wrapper). |
+
+Evaluation order for bash: optional shell parser → **script wrapper** → deny substrings/regexes → connection script → command prefix.
 
 ## `prompts`
 

@@ -19,6 +19,18 @@ function gateActive(): boolean {
   return process.env[POLICY.gateEnv] === POLICY.gateValue;
 }
 
+function scriptWrapperDenial(cmd: string): string | null {
+  if (!POLICY.scriptWrapperRequired) return null;
+  const t = cmd.trimStart();
+  for (const p of POLICY.scriptWrapperPrefixes) {
+    if (p && t.startsWith(p)) return null;
+  }
+  return (
+    "Denied: shell command must begin with an accepted script-wrapper invocation " +
+    "(portal-sandbox). No prefix matched; this check is intentionally shallow and does not parse shell syntax."
+  );
+}
+
 function denyReason(cmd: string): string | null {
   for (const s of POLICY.denySubstrings) {
     if (s && cmd.includes(s)) return `Denied: command contains blocked substring: ${s}`;
@@ -73,6 +85,8 @@ export default function (pi: ExtensionAPI) {
     const input = event.input as { command?: string };
     let cmd = typeof input.command === "string" ? input.command : "";
     cmd = parseCommand(cmd);
+    const wrapDeny = scriptWrapperDenial(cmd);
+    if (wrapDeny) return { block: true, reason: wrapDeny };
     const reason = denyReason(cmd);
     if (reason) return { block: true, reason };
     let next = applyConnection(cmd);

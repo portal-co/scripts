@@ -33,6 +33,13 @@ bash:
     trigger_substrings:
       - "ssh "
       - "scp "
+  # Optional: require routed commands to start with your audited wrapper script.
+  # List every invocation prefix you support (relative + absolute); matching is trimStart + startsWith only.
+  # script_wrapper:
+  #   required: true
+  #   accepted_invocations:
+  #     - "./scripts/portal-shell-wrap.sh"
+  #     - "/usr/local/lib/portal/portal-shell-wrap.sh"
 
 prompts:
   # Claude: SessionStart + UserPromptSubmit additionalContext; Pi: notify on session_start
