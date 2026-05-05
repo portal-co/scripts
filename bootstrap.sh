@@ -35,6 +35,7 @@ echo ""
 CRATES=(
   agents-zip
   bump-npm-version
+  cargo-unlock
   cleanse
   copy-feed-files
   forfiles

@@ -1,0 +1,18 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "cargo-unlock"
+version.workspace = true
+edition.workspace = true
+description = "Remove stale Cargo flock files after killed cargo processes"
+
+[[bin]]
+name = "cargo-unlock"
+path = "src/main.rs"
+
+[dependencies]
+anyhow  = { workspace = true }
+clap    = { workspace = true }
+walkdir = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

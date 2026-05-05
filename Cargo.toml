@@ -17,6 +17,7 @@ members = [
   "crates/freeze",
   "crates/swap-pkg-paths",
   "crates/gen-agent-sandbox",
+  "crates/cargo-unlock",
 ]
 resolver = "2"
 
