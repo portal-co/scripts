@@ -45,7 +45,7 @@ pub fn build_root_cargo(workspace_private: bool, license: &str, desc: &str) -> S
     let mut lines = vec![
         "[workspace]".to_string(),
         "members = []".to_string(),
-        "resolver = \"2\"".to_string(),
+        "resolver = \"3\"".to_string(),
     ];
     if workspace_private || !license.is_empty() || !desc.is_empty() {
         lines.push(String::new());
