@@ -95,19 +95,19 @@ Cargo.lock
 *.pdb
 
 
-     # Node.js
+# Node.js
 node_modules/
 npm-debug.log*
 package-lock.json
 
 
-     # Build outputs
+# Build outputs
 dist/
 build/
 out/
 
 
-     # IDE
+# IDE
 .vscode/
 .idea/
 *.swp
@@ -116,12 +116,12 @@ out/
 .DS_Store
 
 
-     # Logs
+# Logs
 *.log
 logs/
 
 
-     # Environment
+# Environment
 .env
 .env.local
 "
@@ -153,13 +153,11 @@ where
 
     file.write_file(
         &target.join("crates/_").to_string_lossy(),
-        b"# marker to allow git track empty crates dir
-",
+        b"# marker to allow git track empty crates dir",
     )?;
     file.write_file(
         &target.join("packages/_").to_string_lossy(),
-        b"# marker to allow git track empty packages dir
-",
+        b"# marker to allow git track empty packages dir",
     )?;
 
     file.write_file(
@@ -172,8 +170,7 @@ where
     )?;
     file.write_file(
         &target.join("cabal.project").to_string_lossy(),
-        b"packages: []
-",
+        b"packages: []",
     )?;
     file.write_file(
         &target.join("README.md").to_string_lossy(),
@@ -210,14 +207,12 @@ where
     if !file.dir_exists(&crates_dir.to_string_lossy()) {
         println!("Creating crates/ directory…");
         file.create_dir_all(&crates_dir.to_string_lossy())?;
-        file.write_file(&crates_dir.join("_").to_string_lossy(), b"# marker
-")?;
+        file.write_file(&crates_dir.join("_").to_string_lossy(), b"# marker to allow git track empty crates dir")?;
     }
     if !file.dir_exists(&packages_dir.to_string_lossy()) {
         println!("Creating packages/ directory…");
         file.create_dir_all(&packages_dir.to_string_lossy())?;
-        file.write_file(&packages_dir.join("_").to_string_lossy(), b"# marker
-")?;
+        file.write_file(&packages_dir.join("_").to_string_lossy(), b"# marker to allow git track empty packages dir")?;
     }
 
     let gitignore = repo_root.join(".gitignore");
