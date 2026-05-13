@@ -25,10 +25,51 @@
 //!
 //! Returns the count of lines that **still** failed after all rounds.
 
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
 use std::time::Duration;
 
 use tokio::process::Command;
 use tokio::time::sleep;
+
+// ── stdin exclusions ──────────────────────────────────────────────────────────
+
+/// Merge `--exclude` values and lines from `--exclude-from` into one set.
+/// Each entry is trimmed; empty lines are skipped.  Used for exact matches
+/// against trimmed stdin lines.
+pub fn merge_exclude_entries(
+    from_file: Option<&Path>,
+    extra_lines: &[String],
+) -> io::Result<HashSet<String>> {
+    let mut set = HashSet::new();
+    for s in extra_lines {
+        let t = s.trim();
+        if !t.is_empty() {
+            set.insert(t.to_string());
+        }
+    }
+    if let Some(path) = from_file {
+        let f = File::open(path)?;
+        for line in io::BufReader::new(f).lines() {
+            let line = line?;
+            let t = line.trim();
+            if !t.is_empty() {
+                set.insert(t.to_string());
+            }
+        }
+    }
+    Ok(set)
+}
+
+/// Drop stdin lines whose trimmed text appears in `excluded`.
+pub fn filter_lines_excluded(lines: Vec<String>, excluded: &HashSet<String>) -> Vec<String> {
+    lines
+        .into_iter()
+        .filter(|l| !excluded.contains(l.trim()))
+        .collect()
+}
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -226,6 +267,8 @@ fn print_result(r: &LineResult, cmd_template: &[String], placeholder: &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     // Helper: build a cmd_template that echoes the line on stdout.
@@ -389,5 +432,31 @@ mod tests {
             String::from_utf8_lossy(&results[0].stdout).trim(),
             expected.to_str().unwrap()
         );
+    }
+
+    #[test]
+    fn filter_lines_excluded_drops_exact_trim_matches() {
+        let ex: HashSet<String> = ["b".into(), "z".into()].into_iter().collect();
+        let out = filter_lines_excluded(
+            vec!["a".into(), " b ".into(), "c".into()],
+            &ex,
+        );
+        assert_eq!(out, vec!["a".to_string(), "c".to_string()]);
+    }
+
+    #[test]
+    fn merge_exclude_entries_combines_file_and_extra() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("excl.txt");
+        std::fs::write(&path, "from-file\n\n  spaced  \n").unwrap();
+        let set = merge_exclude_entries(
+            Some(path.as_path()),
+            &["extra".into(), "  ".into()],
+        )
+        .unwrap();
+        assert!(set.contains("from-file"));
+        assert!(set.contains("spaced"));
+        assert!(set.contains("extra"));
+        assert_eq!(set.len(), 3);
     }
 }

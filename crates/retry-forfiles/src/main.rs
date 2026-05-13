@@ -14,6 +14,9 @@
 //!                      directory.  Occurrences of `<placeholder>` in PATH
 //!                      are substituted per-line before chdir.  When
 //!                      omitted, children inherit the parent's cwd.
+//!   --exclude <LINE>   Omit stdin lines whose trimmed text equals LINE
+//!                      (repeatable; exact match).
+//!   --exclude-from <PATH>  Same, reading one excluded line per file line.
 //!
 //! Every occurrence of `placeholder` in `command` and `args` is replaced with
 //! the input line.  All lines are run concurrently within each round.  After
@@ -34,6 +37,7 @@
 //! A single automatic retry pass resolves the vast majority of these.
 
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 use std::process;
 use std::time::Duration;
 
@@ -52,6 +56,14 @@ struct Cli {
     /// Seconds to wait between retry rounds (fractional values accepted).
     #[arg(long, default_value_t = 1.0)]
     delay: f64,
+
+    /// Read excluded stdin lines (trimmed, nonempty) from this file.
+    #[arg(long = "exclude-from")]
+    exclude_from: Option<PathBuf>,
+
+    /// Exclude stdin lines whose trimmed text equals this value (repeatable).
+    #[arg(long = "exclude", action = clap::ArgAction::Append)]
+    exclude: Vec<String>,
 
     /// Path template used as each child's working directory.  Occurrences of
     /// the placeholder are substituted per-line before chdir.
@@ -83,6 +95,18 @@ async fn main() {
         .filter_map(|l| l.ok())
         .filter(|l| !l.trim().is_empty())
         .collect();
+
+    let excluded = match forfiles_core::merge_exclude_entries(
+        cli.exclude_from.as_deref(),
+        &cli.exclude,
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("retry-forfiles: --exclude-from: {e}");
+            process::exit(1);
+        }
+    };
+    let lines = forfiles_core::filter_lines_excluded(lines, &excluded);
 
     if lines.is_empty() {
         process::exit(0);

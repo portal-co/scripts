@@ -19,8 +19,10 @@ A workspace binary (Rust) that reads lines from `stdin` and executes a command f
 - **Placeholder**: `^` is replaced by the input line in both `command`/`args` and the `--cwd` template.
 - **Options**:
   - `-C, --cwd <PATH>` &nbsp;Path template applied as each child's working directory; occurrences of the placeholder in `PATH` are substituted per-line. Replaces the old `sh -c "cd ^; …"` wrapper used throughout `tools/git/`.
+  - `--exclude <LINE>` &nbsp;Repeatable; omit stdin lines whose trimmed text equals `LINE` (exact match).
+  - `--exclude-from <PATH>` &nbsp;Same, reading one excluded line per nonempty trimmed file line.
 
-A retrying companion lives at [`./retry-forfiles`](./retry-forfiles); it accepts the same `-C / --cwd` flag plus `--attempts` and `--delay`.
+A retrying companion lives at [`./retry-forfiles`](./retry-forfiles); it accepts the same `-C / --cwd` and exclude flags plus `--attempts` and `--delay`.
 
 ### Git & Repository Management
 
@@ -41,7 +43,9 @@ These scripts are designed to work on a directory containing multiple git reposi
 
 | Script | Description |
 |:-------|:------------|
-| `updateallcargo.sh` | Runs `cargo update` and commits the result in every subdirectory. |
+| `fmtallcargo.sh` | Runs `cargo fmt` and commits in each subdirectory; skips repos with non-lockfile dirty trees (same lockfile list as `updateallcargo.sh`). |
+| `updateallcargo.sh` | Runs `cargo update` and commits in each subdirectory; skips repos whose working tree has changes other than common lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`). |
+| `upgradeallcargo.sh` | Like `updateallcargo.sh` but runs `cargo upgrade` (from [cargo-edit](https://github.com/killercup/cargo-edit)); same skip rules. |
 | `updateallcargoplus.sh`| Retries `updateallcargo.sh` and `pushall.sh` in a loop (useful for resolving dependency chains). |
 
 ### Misc

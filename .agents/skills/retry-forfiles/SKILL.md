@@ -29,6 +29,8 @@ cargo build -p retry-forfiles
 | `--delay <ms>` | 1000 | Milliseconds to wait between retries |
 | `--backoff` | false | Exponential backoff (doubles delay on each retry) |
 | `-C, --cwd <PATH>` | _(inherit)_ | Path template applied as each child's working directory. Occurrences of the placeholder in `PATH` are substituted per-line before chdir. Replaces the old `sh -c "cd <line>; …"` pattern. |
+| `--exclude <LINE>` | _(none)_ | Same as `forfiles` (repeatable). |
+| `--exclude-from <PATH>` | _(none)_ | Same as `forfiles`. |
 
 ## Arguments
 

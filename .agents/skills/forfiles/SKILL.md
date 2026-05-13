@@ -35,6 +35,8 @@ cargo build -p forfiles
 | Flag | Description |
 |------|-------------|
 | `-C, --cwd <PATH>` | Path template applied as each child's working directory. Occurrences of the placeholder in `PATH` are substituted per-line before chdir. Replaces the old `sh -c "cd <line>; …"` pattern. |
+| `--exclude <LINE>` | Repeatable. Drop stdin lines whose trimmed text equals `LINE` (exact match). |
+| `--exclude-from <PATH>` | Read excluded lines from a file (trimmed, nonempty); same matching as `--exclude`. |
 
 ## Usage
 
@@ -80,7 +82,7 @@ work too.
 - All commands start concurrently (no rate limiting by default)
 - stdout/stderr from each process is forwarded to the terminal (interleaved)
 - Exit code is 0 only if every command exits 0
-- Empty lines in stdin are skipped
+- Empty lines in stdin are skipped; lines whose trimmed text matches any `--exclude` value or any nonempty trimmed line from `--exclude-from` are dropped before spawning
 
 ## Notes
 
