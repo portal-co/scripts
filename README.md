@@ -72,14 +72,14 @@ Small scripts for operating on multiple repos at once. Most depend on `forfiles`
 
 | Script | Purpose |
 |---|---|
-| `pullall.sh` | `git pull --no-rebase` in every subdirectory of the current directory |
-| `pushall.sh` | `git push` in every subdirectory |
-| `commitandpushall.sh` | `git add -A && git commit -m update && git push` in every subdirectory |
-| `updateallcargo.sh` | `cargo update` in every subdirectory, then commits |
+| `pullall.sh` | `git pull --no-rebase` in each git subdirectory (skips dirs that are not git work trees) |
+| `pushall.sh` | `git push` in each git subdirectory (skips non-git dirs) |
+| `commitall.sh` | `git add -A && git commit -m update` in each git subdirectory (skips non-git dirs) |
+| `commitandpushall.sh` | `git add -A && git commit -m update && git push` in each git subdirectory (skips non-git dirs) |
+| `updateallcargo.sh` | `cargo update` in each git subdirectory, then commits; skips non-git dirs and dirty non-lockfile trees |
 | `updateallcargoplus.sh` | Variant of the above |
-| `fetch-repos-gh.sh` | Lists all repos in a GitHub org (via `gh`) and runs `pull.sh` on each |
-| `fetch-repos.sh` | Variant of the above |
-| `fmtallcargo.sh` | `cargo fmt` across all subdirectories |
+| `fmtallcargo.sh` | `cargo fmt` across git subdirectories; skips non-git dirs and dirty non-lockfile trees |
+| `upgradeallcargo.sh` | `cargo upgrade` (cargo-edit) in each git subdirectory, then commits; same skip rules as `updateallcargo.sh` |
 | `sortallignores.sh` | Sorts `.gitignore` files across all subdirectories |
 | `addignores.sh` | Adds `.gitignore` entries across repos |
 | `codeall.sh` | Opens all subdirectories in VS Code |

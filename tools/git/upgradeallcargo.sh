@@ -4,5 +4,5 @@
 . "$(dirname $0)/bootstrap.sh"
 EX=$(mktemp)
 trap 'rm -f "$EX"' EXIT
-ls | "$RUN" forfiles -C '^' '^' sh -c 't=$(mktemp);git diff --name-only HEAD >"$t" 2>/dev/null || true;git ls-files --others --exclude-standard >>"$t" 2>/dev/null || true;bad=;while IFS= read -r f; do [ -z "$f" ] && continue;case "$f" in */Cargo.lock|Cargo.lock|*/package-lock.json|package-lock.json|*/yarn.lock|yarn.lock|*/pnpm-lock.yaml|pnpm-lock.yaml) ;; *) bad=1; break;; esac; done <"$t";rm -f "$t";[ -n "$bad" ] && printf %s\n ^;exit 0' >>"$EX" || true
+ls | "$RUN" forfiles -C '^' '^' sh -c 'git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { printf %s\n ^; exit 0; };t=$(mktemp);git diff --name-only HEAD >"$t" 2>/dev/null || true;git ls-files --others --exclude-standard >>"$t" 2>/dev/null || true;bad=;while IFS= read -r f; do [ -z "$f" ] && continue;case "$f" in */Cargo.lock|Cargo.lock|*/package-lock.json|package-lock.json|*/yarn.lock|yarn.lock|*/pnpm-lock.yaml|pnpm-lock.yaml) ;; *) bad=1; break;; esac; done <"$t";rm -f "$t";[ -n "$bad" ] && printf %s\n ^;exit 0' >>"$EX" || true
 ls | "$RUN" forfiles --exclude-from "$EX" -C '^' '^' sh -c 'cargo upgrade; git add -A; git commit -m upgrade'
