@@ -91,7 +91,7 @@ fn format_dir_line(rel: &Path) -> PathBuf {
 }
 
 fn matches_filters(dir: &Path, filters: Filters) -> Result<bool> {
-    if filters.git && !is_git_work_tree(dir)? {
+    if filters.git && !is_git_repo(dir) {
         return Ok(false);
     }
     if filters.cargo && !dir.join("Cargo.toml").is_file() {
@@ -103,17 +103,15 @@ fn matches_filters(dir: &Path, filters: Filters) -> Result<bool> {
     Ok(true)
 }
 
-fn is_git_work_tree(dir: &Path) -> Result<bool> {
-    let ok = Command::new("git")
-        .args(["-C", &dir.to_string_lossy(), "rev-parse", "--is-inside-work-tree"])
-        .output()
-        .with_context(|| format!("git rev-parse in {}", dir.display()))?;
-    Ok(ok.status.success()
-        && String::from_utf8_lossy(&ok.stdout).trim() == "true")
+/// True when `dir` is a repository root (`.git` directory or gitfile), not merely
+/// nested inside another repo.
+pub fn is_git_repo(dir: &Path) -> bool {
+    let dot_git = dir.join(".git");
+    dot_git.is_dir() || dot_git.is_file()
 }
 
 fn is_clean_except_lockfiles(dir: &Path) -> Result<bool> {
-    if !is_git_work_tree(dir)? {
+    if !is_git_repo(dir) {
         return Ok(false);
     }
     let mut paths = git_changed_paths(dir)?;
@@ -264,5 +262,38 @@ mod tests {
         assert!(is_lockfile_path("Cargo.lock"));
         assert!(is_lockfile_path("crates/foo/Cargo.lock"));
         assert!(!is_lockfile_path("src/main.rs"));
+    }
+
+    #[test]
+    fn is_git_repo_requires_dot_git_at_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join("repo/src")).unwrap();
+        init_git(&root.join("repo"));
+
+        assert!(is_git_repo(&root.join("repo")));
+        assert!(!is_git_repo(&root.join("repo/src")));
+    }
+
+    #[test]
+    fn is_git_repo_accepts_gitfile() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fs::create_dir(root.join("wt")).unwrap();
+        fs::write(root.join("wt/.git"), "gitdir: /tmp/example.git\n").unwrap();
+        assert!(is_git_repo(&root.join("wt")));
+    }
+
+    #[test]
+    fn git_filter_does_not_emit_subdirs_inside_repo() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        fs::create_dir_all(root.join("repo/sub")).unwrap();
+        init_git(&root.join("repo"));
+
+        let listed = list_directories(root, 2, Filters { git: true, ..Default::default() }).unwrap();
+        let names: Vec<_> = listed.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+        assert!(names.contains(&"repo/".to_string()));
+        assert!(!names.iter().any(|n| n.contains("sub")));
     }
 }

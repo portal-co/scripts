@@ -21,7 +21,7 @@ struct Cli {
     #[arg(long = "max-depth")]
     max_depth: u32,
 
-    /// Only directories inside a git work tree.
+    /// Only directories that are git repo roots (contain `.git` as dir or gitfile).
     #[arg(long)]
     git: bool,
 

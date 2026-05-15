@@ -22,8 +22,8 @@ AIKEY = "AIKEY-l4qkxonqry2b4gj7bsrkqpryiy"
 # (stem, use_retry_forfiles, command, postfix_lines, exclude_mode, all_remotes)
 # exclude_mode controls listrepos filters:
 #   "none"  — all directories up to max depth
-#   "git"   — git work trees only
-#   "cargo" — git work trees with Cargo.toml and clean lockfile-only trees
+#   "git"   — git repo roots only (directory contains `.git`)
+#   "cargo" — git repo roots with Cargo.toml and clean lockfile-only trees
 # all_remotes: wrap pull/push in a loop over `git remote` (commitandpushall: push only)
 OPERATIONS = [
     ("pullall",

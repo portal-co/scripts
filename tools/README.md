@@ -28,7 +28,7 @@ A retrying companion lives at [`./retry-forfiles`](./retry-forfiles); it accepts
 Discovers directories under the current tree for batch scripts (replaces fixed-depth `ls` globs).
 - **Usage**: `"$RUN" listrepos --max-depth N [--git] [--cargo] [--clean-lockfiles-only]`
 - **`--max-depth N`**: emit matching directories at depths **1 through N** (cumulative; `pushall3.sh` includes depth-1 and depth-2 repos as well as depth-3).
-- **`--git`**: only git work trees.
+- **`--git`**: only git repo roots (a `.git` directory or gitfile in that directory; subdirs inside a repo are not listed).
 - **`--cargo`**: requires `--git` and a `Cargo.toml` in the directory.
 - **`--clean-lockfiles-only`**: requires `--git`; only repos whose dirty paths are allowlisted lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`).
 
@@ -54,8 +54,8 @@ These scripts are designed to work on a directory containing multiple git reposi
 
 | Script | Description |
 |:-------|:------------|
-| `fmtallcargo.sh` | Runs `cargo fmt` and commits in each subdirectory; skips directories that are not git work trees and repos with non-lockfile dirty trees (same lockfile list as `updateallcargo.sh`). |
-| `updateallcargo.sh` | Runs `cargo update` and commits in each subdirectory; skips directories that are not git work trees, and repos whose working tree has changes other than common lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`). |
+| `fmtallcargo.sh` | Runs `cargo fmt` and commits in each git repo root; skips non-repos and repos with non-lockfile dirty trees (same lockfile list as `updateallcargo.sh`). |
+| `updateallcargo.sh` | Runs `cargo update` and commits in each git repo root; skips non-repos and repos whose working tree has changes other than common lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`). |
 | `upgradeallcargo.sh` | Like `updateallcargo.sh` but runs `cargo upgrade` (from [cargo-edit](https://github.com/killercup/cargo-edit)); same skip rules. |
 | `updateallcargoplus.sh`| Retries `updateallcargo.sh` and `pushall.sh` in a loop (useful for resolving dependency chains). |
 
