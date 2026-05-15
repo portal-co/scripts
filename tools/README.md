@@ -24,18 +24,28 @@ A workspace binary (Rust) that reads lines from `stdin` and executes a command f
 
 A retrying companion lives at [`./retry-forfiles`](./retry-forfiles); it accepts the same `-C / --cwd` and exclude flags plus `--attempts` and `--delay`.
 
+#### [listrepos](./listrepos)
+Discovers directories under the current tree for batch scripts (replaces fixed-depth `ls` globs).
+- **Usage**: `"$RUN" listrepos --max-depth N [--git] [--cargo] [--clean-lockfiles-only]`
+- **`--max-depth N`**: emit matching directories at depths **1 through N** (cumulative; `pushall3.sh` includes depth-1 and depth-2 repos as well as depth-3).
+- **`--git`**: only git work trees.
+- **`--cargo`**: requires `--git` and a `Cargo.toml` in the directory.
+- **`--clean-lockfiles-only`**: requires `--git`; only repos whose dirty paths are allowlisted lockfiles (`Cargo.lock`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`).
+
+Generated `*allN.sh` scripts pipe `listrepos` into `forfiles` / `retry-forfiles`.
+
 ### Git & Repository Management
 
-These scripts are designed to work on a directory containing multiple git repositories. Scripts generated from `tools/git/gen.py` that run git in each subdirectory (`pullall*`, `pushall*`, `commitall*`, `commitandpushall*`) **skip directories that are not git work trees** via a preliminary `forfiles` pass and `--exclude-from`.
+These scripts are designed to work on a directory containing multiple git repositories. Numbered variants (`pullall2.sh`, `pushall3.sh`, …) set **max depth** for discovery, not exact depth only.
 
 | Script | Description |
 |:-------|:------------|
 | `addignores.sh` | Adds `target`, `node_modules`, and `.DS_Store` to `.gitignore` in all subdirectories, then sorts them. |
 | `codeall.sh` | Opens every subdirectory in a new VS Code window. |
-| `commitall.sh` | Stages all changes and commits with message `update` in each git subdirectory (skips non-git dirs). |
-| `commitandpushall.sh` | Stages all changes, commits with "update", and pushes in each git subdirectory (skips non-git dirs). |
-| `pullall.sh` | Runs `git pull --no-rebase` in each git subdirectory (skips non-git dirs). |
-| `pushall.sh` | Runs `git push` in each git subdirectory (skips non-git dirs). |
+| `commitall.sh` | Stages all changes and commits with message `update` in each git repo (via `listrepos --git`). |
+| `commitandpushall.sh` | Commits, then **pushes every `git remote`** in each repo. |
+| `pullall.sh` | **`git pull --no-rebase` on every `git remote`** in each repo. |
+| `pushall.sh` | **`git push` to every `git remote`** in each repo. |
 | `sortallignores.sh` | Deduplicates and sorts the `.gitignore` file in every subdirectory. |
 | `fetch-repos.sh` | Fetches and clones/updates all public repositories from a GitHub organization. |
 | `fetch-repos-gh.sh` | Similar to `fetch-repos.sh` but uses the `gh` CLI for listing repositories. |

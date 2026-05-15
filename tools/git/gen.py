@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate *all[n].sh scripts for arbitrary directory depths.
+Generate *all[n].sh scripts for batch operations over nested directories.
 
 Usage:
     python3 gen.py [max_depth]   # default 3
 
 Generated names:
-    stem.sh       depth 1  (ls)
-    stem2.sh      depth 2  (ls -d */*/)
-    stemN.sh      depth N  (ls -d */.../N)
+    stem.sh       max depth 1  (repos at depths 1 only)
+    stem2.sh      max depth 2  (repos at depths 1..2)
+    stemN.sh      max depth N  (repos at depths 1..N)
+
+Discovery uses the listrepos binary (max-depth cumulative, property filters).
 """
 
 import os
@@ -17,121 +19,118 @@ import sys
 
 AIKEY = "AIKEY-l4qkxonqry2b4gj7bsrkqpryiy"
 
-# Lockfile basenames allowed when deciding if a repo is "clean enough" for
-# fmt/update/upgrade batch passes (see pass_a_cargo_clean_excludes_sh).
-LOCKFILE_BASENAMES = (
-    "Cargo.lock",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-)
-
-# (stem, use_retry_forfiles, command, postfix_lines, exclude_mode)
-# exclude_mode:
-#   "none"     — single forfiles pass (no exclude-from).
-#   "git"      — two passes; pass A excludes dirs that are not git work trees.
-#   "cargo"    — two passes; pass A excludes non-git dirs and dirty non-lockfile
-#                trees (see LOCKFILE_BASENAMES).
+# (stem, use_retry_forfiles, command, postfix_lines, exclude_mode, all_remotes)
+# exclude_mode controls listrepos filters:
+#   "none"  — all directories up to max depth
+#   "git"   — git work trees only
+#   "cargo" — git work trees with Cargo.toml and clean lockfile-only trees
+# all_remotes: wrap pull/push in a loop over `git remote` (commitandpushall: push only)
 OPERATIONS = [
     ("pullall",
      True,
      "git pull --no-rebase",
      [],
-     "git"),
+     "git",
+     True),
     ("pushall",
      True,
      "git push",
      [],
-     "git"),
+     "git",
+     True),
     ("commitall",
      True,
      "sh -c 'git add -A; git commit -m update'",
      [],
-     "git"),
+     "git",
+     False),
     ("commitandpushall",
      True,
-     "sh -c 'git add -A; git commit -m update; git push'",
+     "sh -c 'git add -A; git commit -m update'",
      [],
-     "git"),
+     "git",
+     "push"),
     ("fmtallcargo",
      False,
      "sh -c 'cargo fmt; git add -A; git commit -m fmt'",
      [],
-     "cargo"),
+     "cargo",
+     False),
     ("updateallcargo",
      False,
      "sh -c 'cargo update; git add -A; git commit -m update'",
      [],
-     "cargo"),
+     "cargo",
+     False),
     ("upgradeallcargo",
      False,
      "sh -c 'cargo upgrade; git add -A; git commit -m upgrade'",
      [],
-     "cargo"),
+     "cargo",
+     False),
     ("codeall",
      False,
      "code .",
      [],
-     "none"),
+     "none",
+     False),
     ("sortallignores",
      False,
      "sh -c '(cat .gitignore || true) | sort | uniq > .gitignore.2; mv .gitignore.2 .gitignore'",
      [],
-     "none"),
+     "none",
+     False),
     ("addignores",
      False,
      "sh -c 'echo >> .gitignore; echo target >> .gitignore; echo node_modules >> .gitignore; echo .DS_Store >> .gitignore'",
      ["sh $(dirname $0)/sortallignores.sh"],
-     "none"),
+     "none",
+     False),
 ]
 
 
-def lockfile_case_arm() -> str:
-    return "|".join(f"*/{n}|{n}" for n in LOCKFILE_BASENAMES)
+def listrepos_cmd(max_depth: int, exclude_mode: str) -> str:
+    flags = [f'--max-depth {max_depth}']
+    if exclude_mode == "git":
+        flags.append("--git")
+    elif exclude_mode == "cargo":
+        flags.extend(["--git", "--cargo", "--clean-lockfiles-only"])
+    elif exclude_mode != "none":
+        raise ValueError(f"unknown exclude_mode: {exclude_mode!r}")
+    return '"$RUN" listrepos ' + " ".join(flags)
 
 
-def pass_a_git_only_excludes_sh() -> str:
-    """Pass A for plain git batch scripts: exclude non-work-tree dirs only."""
-    inner = (
-        "git rev-parse --is-inside-work-tree >/dev/null 2>&1 "
-        "|| { printf %s\\n ^; exit 0; };"
-        "exit 0"
-    )
+def git_foreach_remote(pull_or_push: str) -> str:
+    """Shell body: run git pull/push for every configured remote (no-op if none)."""
+    if pull_or_push == "pull":
+        inner = 'for r in $(git remote); do git pull --no-rebase "$r" || exit 1; done'
+    elif pull_or_push == "push":
+        inner = 'for r in $(git remote); do git push "$r" || exit 1; done'
+    else:
+        raise ValueError(f"unknown pull_or_push: {pull_or_push!r}")
     return f"sh -c '{inner}'"
 
 
-def pass_a_cargo_clean_excludes_sh() -> str:
-    """Pass A for cargo batch scripts: exclude non-git dirs and dirty non-lockfile trees."""
-    arm = lockfile_case_arm()
-    inner = (
-        "git rev-parse --is-inside-work-tree >/dev/null 2>&1 "
-        "|| { printf %s\\n ^; exit 0; };"
-        "t=$(mktemp);"
-        "git diff --name-only HEAD >\"$t\" 2>/dev/null || true;"
-        "git ls-files --others --exclude-standard >>\"$t\" 2>/dev/null || true;"
-        "bad=;"
-        "while IFS= read -r f; do "
-        "[ -z \"$f\" ] && continue;"
-        "case \"$f\" in "
-        f"{arm}) ;; "
-        "*) bad=1; break;; "
-        "esac; "
-        "done <\"$t\";"
-        "rm -f \"$t\";"
-        "[ -n \"$bad\" ] && printf %s\\n ^;"
-        "exit 0"
-    )
-    return f"sh -c '{inner}'"
+def resolve_command(cmd: str, all_remotes) -> str:
+    if all_remotes is True:
+        if cmd == "git pull --no-rebase":
+            return git_foreach_remote("pull")
+        if cmd == "git push":
+            return git_foreach_remote("push")
+        raise ValueError(f"all_remotes not supported for command: {cmd!r}")
+    if all_remotes == "push":
+        inner = (
+            "git add -A; git commit -m update; "
+            "for r in $(git remote); do git push \"$r\" || exit 1; done"
+        )
+        return f"sh -c '{inner}'"
+    if all_remotes:
+        raise ValueError(f"invalid all_remotes: {all_remotes!r}")
+    return cmd
 
 
-def depth_ls(n: int) -> str:
-    if n == 1:
-        return "ls"
-    return "ls -d " + "*/" * n
-
-
-def script_name(stem: str, depth: int) -> str:
-    suffix = "" if depth == 1 else str(depth)
+def script_name(stem: str, max_depth: int) -> str:
+    suffix = "" if max_depth == 1 else str(max_depth)
     return f"{stem}{suffix}.sh"
 
 
@@ -140,43 +139,28 @@ def render(
     retry: bool,
     cmd: str,
     postfix: list[str],
-    depth: int,
+    max_depth: int,
     *,
     exclude_mode: str,
+    all_remotes,
 ) -> str:
     runner = "retry-forfiles" if retry else "forfiles"
-    ls = depth_ls(depth)
+    discover = listrepos_cmd(max_depth, exclude_mode)
+    command = resolve_command(cmd, all_remotes)
     header = [
         "#!/bin/sh",
         f"# {AIKEY}",
-        f"# AUTO-GENERATED by gen.py (depth={depth}) — edit gen.py, not this file.",
+        f"# AUTO-GENERATED by gen.py (max_depth={max_depth}) — edit gen.py, not this file.",
         '. "$(dirname $0)/bootstrap.sh"',
     ]
-    if exclude_mode == "git":
-        collect = pass_a_git_only_excludes_sh()
-        body = [
-            'EX=$(mktemp)',
-            'trap \'rm -f "$EX"\' EXIT',
-            f'{ls} | "$RUN" {runner} -C \'^\' \'^\' {collect} >>"$EX" || true',
-            f'{ls} | "$RUN" {runner} --exclude-from "$EX" -C \'^\' \'^\' {cmd}',
-        ]
-    elif exclude_mode == "cargo":
-        collect = pass_a_cargo_clean_excludes_sh()
-        body = [
-            'EX=$(mktemp)',
-            'trap \'rm -f "$EX"\' EXIT',
-            f'{ls} | "$RUN" {runner} -C \'^\' \'^\' {collect} >>"$EX" || true',
-            f'{ls} | "$RUN" {runner} --exclude-from "$EX" -C \'^\' \'^\' {cmd}',
-        ]
-    elif exclude_mode == "none":
-        body = [f'{ls} | "$RUN" {runner} -C \'^\' \'^\' {cmd}']
-    else:
-        raise ValueError(f"unknown exclude_mode: {exclude_mode!r}")
+    body = [
+        f'{discover} | "$RUN" {runner} -C \'^\' \'^\' {command}',
+    ]
     return "\n".join(header + body + postfix) + "\n"
 
 
 def generate(max_depth: int, out_dir: str) -> None:
-    for stem, retry, cmd, postfix, exclude_mode in OPERATIONS:
+    for stem, retry, cmd, postfix, exclude_mode, all_remotes in OPERATIONS:
         for depth in range(1, max_depth + 1):
             name = script_name(stem, depth)
             path = os.path.join(out_dir, name)
@@ -187,6 +171,7 @@ def generate(max_depth: int, out_dir: str) -> None:
                 postfix,
                 depth,
                 exclude_mode=exclude_mode,
+                all_remotes=all_remotes,
             )
             with open(path, "w") as f:
                 f.write(content)
@@ -197,6 +182,6 @@ def generate(max_depth: int, out_dir: str) -> None:
 if __name__ == "__main__":
     max_depth = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     out_dir = os.path.dirname(os.path.abspath(__file__))
-    print(f"Generating depths 1–{max_depth} in {out_dir}")
+    print(f"Generating max depths 1–{max_depth} in {out_dir}")
     generate(max_depth, out_dir)
     print("Done.")

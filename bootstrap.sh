@@ -41,6 +41,7 @@ CRATES=(
   forfiles
   freeze
   inject-key
+  listrepos
   retry-forfiles
   scaffold-repo
 )

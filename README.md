@@ -68,18 +68,18 @@ All publish and release jobs are gated to `github.repository_owner == 'portal-co
 
 ### Shell scripts (in `tools/git/`)
 
-Small scripts for operating on multiple repos at once. Most depend on `forfiles` being in PATH.
+Small scripts for operating on multiple repos at once. Most pipe [`listrepos`](tools/listrepos) into `forfiles` for discovery. Suffix `N` on script names means **max depth N** (repos at depths 1..N), not exact depth only.
 
 | Script | Purpose |
 |---|---|
-| `pullall.sh` | `git pull --no-rebase` in each git subdirectory (skips dirs that are not git work trees) |
-| `pushall.sh` | `git push` in each git subdirectory (skips non-git dirs) |
-| `commitall.sh` | `git add -A && git commit -m update` in each git subdirectory (skips non-git dirs) |
-| `commitandpushall.sh` | `git add -A && git commit -m update && git push` in each git subdirectory (skips non-git dirs) |
-| `updateallcargo.sh` | `cargo update` in each git subdirectory, then commits; skips non-git dirs and dirty non-lockfile trees |
+| `pullall.sh` | `git pull --no-rebase` on **every `git remote`** in each repo (`listrepos --max-depth 1 --git`) |
+| `pushall.sh` | `git push` to **every `git remote`** in each repo |
+| `commitall.sh` | `git add -A && git commit -m update` in each git repo |
+| `commitandpushall.sh` | Commit, then push **all remotes** in each repo |
+| `updateallcargo.sh` | `cargo update` then commit; only clean git repos with `Cargo.toml` |
 | `updateallcargoplus.sh` | Variant of the above |
-| `fmtallcargo.sh` | `cargo fmt` across git subdirectories; skips non-git dirs and dirty non-lockfile trees |
-| `upgradeallcargo.sh` | `cargo upgrade` (cargo-edit) in each git subdirectory, then commits; same skip rules as `updateallcargo.sh` |
+| `fmtallcargo.sh` | `cargo fmt` then commit; same discovery filters as `updateallcargo.sh` |
+| `upgradeallcargo.sh` | `cargo upgrade` (cargo-edit) then commit; same discovery filters |
 | `sortallignores.sh` | Sorts `.gitignore` files across all subdirectories |
 | `addignores.sh` | Adds `.gitignore` entries across repos |
 | `codeall.sh` | Opens all subdirectories in VS Code |

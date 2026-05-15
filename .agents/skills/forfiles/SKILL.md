@@ -73,6 +73,12 @@ Use `-C` instead of wrapping the command in `sh -c "cd <line>; …"`:
 ls | ./forfiles -C '{}' '{}' git status --short
 ```
 
+Batch scripts in `tools/git/` discover targets with `listrepos` (max depth + `--git` / `--cargo` filters) and pipe into `forfiles`:
+
+```bash
+./listrepos --max-depth 3 --git | ./forfiles -C '^' '^' git status --short
+```
+
 The placeholder is substituted in both the cwd template and any matching
 arguments, so commands that need the line value as an argument continue to
 work too.

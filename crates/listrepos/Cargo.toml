@@ -1,0 +1,20 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "listrepos"
+version.workspace = true
+edition.workspace = true
+description = "List directories up to a max depth, filtered by git/cargo/clean-tree properties"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "listrepos"
+path = "src/main.rs"
+
+[dependencies]
+clap   = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
