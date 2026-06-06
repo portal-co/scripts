@@ -1,0 +1,15 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "clean-build-dirs"
+version.workspace = true
+edition.workspace = true
+description = "Remove target/ and node_modules/ trees for cross-machine share hygiene"
+
+[[bin]]
+name = "clean-build-dirs"
+path = "src/main.rs"
+
+[dependencies]
+anyhow  = { workspace = true }
+clap    = { workspace = true }
+walkdir = { workspace = true }

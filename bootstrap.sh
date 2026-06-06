@@ -36,6 +36,7 @@ CRATES=(
   agents-zip
   bump-npm-version
   cargo-unlock
+  clean-build-dirs
   cleanse
   copy-feed-files
   forfiles
