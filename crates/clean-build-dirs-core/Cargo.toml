@@ -1,0 +1,13 @@
+# AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
+[package]
+name        = "clean-build-dirs-core"
+version.workspace = true
+edition.workspace = true
+description = "Shared directory-finding logic for clean-build-dirs and clean-build-dirs-async"
+
+[lib]
+name = "clean_build_dirs_core"
+path = "src/lib.rs"
+
+[dependencies]
+walkdir = { workspace = true }

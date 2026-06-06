@@ -1,19 +1,10 @@
 // AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
-//! Remove `target/` and `node_modules/` directories from a directory tree.
-//!
-//! Useful before sharing a project over a network mount where paths or
-//! architectures differ between machines, which causes stale build artifacts
-//! to produce mysterious and hard-to-diagnose failures.
-
-use std::ffi::OsStr;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use walkdir::WalkDir;
-
-const DIRS_TO_REMOVE: &[&str] = &["target", "node_modules"];
+use clean_build_dirs_core::find_dirs;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -75,27 +66,4 @@ fn run() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn find_dirs(root: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    let mut it = WalkDir::new(root).follow_links(false).into_iter();
-    loop {
-        let entry = match it.next() {
-            None => break,
-            Some(Err(_)) => continue,
-            Some(Ok(e)) => e,
-        };
-        if entry.file_type().is_dir() {
-            let name = entry.file_name();
-            if DIRS_TO_REMOVE
-                .iter()
-                .any(|&s| OsStr::new(s) == name)
-            {
-                out.push(entry.into_path());
-                it.skip_current_dir();
-            }
-        }
-    }
-    out
 }

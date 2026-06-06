@@ -1,15 +1,16 @@
 # AIKEY-l4qkxonqry2b4gj7bsrkqpryiy
 [package]
-name        = "clean-build-dirs"
+name        = "clean-build-dirs-async"
 version.workspace = true
 edition.workspace = true
-description = "Remove target/ and node_modules/ trees for cross-machine share hygiene"
+description = "Async concurrent variant of clean-build-dirs"
 
 [[bin]]
-name = "clean-build-dirs"
+name = "clean-build-dirs-async"
 path = "src/main.rs"
 
 [dependencies]
 anyhow                 = { workspace = true }
 clap                   = { workspace = true }
+tokio                  = { workspace = true }
 clean-build-dirs-core  = { path = "../clean-build-dirs-core" }

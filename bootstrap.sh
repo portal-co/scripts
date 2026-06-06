@@ -37,6 +37,7 @@ CRATES=(
   bump-npm-version
   cargo-unlock
   clean-build-dirs
+  clean-build-dirs-async
   cleanse
   copy-feed-files
   forfiles

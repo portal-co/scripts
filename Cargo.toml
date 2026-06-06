@@ -18,7 +18,9 @@ members = [
   "crates/swap-pkg-paths",
   "crates/gen-agent-sandbox",
   "crates/cargo-unlock",
+  "crates/clean-build-dirs-core",
   "crates/clean-build-dirs",
+  "crates/clean-build-dirs-async",
   "crates/listrepos",
 ]
 resolver = "2"

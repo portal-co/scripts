@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo build *)",
+      "Bash(git mv *)",
+      "Bash(git rm *)",
+      "Bash(python3 gen.py 3)"
+    ]
+  }
+}
