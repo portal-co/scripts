@@ -22,6 +22,7 @@ members = [
   "crates/clean-build-dirs",
   "crates/clean-build-dirs-async",
   "crates/listrepos",
+  "crates/git-recurse",
 ]
 resolver = "2"
 

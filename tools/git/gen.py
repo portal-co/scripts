@@ -111,12 +111,21 @@ def git_foreach_remote(pull_or_push: str) -> str:
     return f"sh -c '{inner}'"
 
 
+def git_recurse_wrapper(pull_or_push: str) -> str:
+    """Invoke the git-recurse Rust binary for in-process recursive push/pull."""
+    if pull_or_push == "pull":
+        return '"$RUN" git-recurse pull'
+    if pull_or_push == "push":
+        return '"$RUN" git-recurse push'
+    raise ValueError(f"unknown pull_or_push: {pull_or_push!r}")
+
+
 def resolve_command(cmd: str, all_remotes) -> str:
     if all_remotes is True:
         if cmd == "git pull --no-rebase":
-            return git_foreach_remote("pull")
+            return git_recurse_wrapper("pull")
         if cmd == "git push":
-            return git_foreach_remote("push")
+            return git_recurse_wrapper("push")
         raise ValueError(f"all_remotes not supported for command: {cmd!r}")
     if all_remotes == "push":
         inner = (

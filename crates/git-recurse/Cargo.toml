@@ -1,0 +1,11 @@
+[package]
+name = "git-recurse"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "git-recurse"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
