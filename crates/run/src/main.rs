@@ -9,11 +9,11 @@
 //!      (see `workspace_root()`), so it works from any directory.
 //!   2. Looks for a crate at `<workspace-root>/crates/<binary-name>/`.
 //!   3. Compares the newest mtime among all `.rs` files and `Cargo.toml`
-//!      inside that crate directory against `target/debug/<binary-name>`.
+//!      inside that crate directory against the binary path.
 //!   4. If any source file is newer than the binary (or the binary is absent),
 //!      runs `cargo build -p <binary-name>` before continuing.
-//!   5. Execs `target/debug/<binary-name>` with the forwarded arguments,
-//!      replacing the current process on Unix.
+//!   5. Execs the built binary with the forwarded arguments, replacing the
+//!      current process on Unix.
 //!
 //! This makes it safe to invoke Rust script binaries directly from a shell
 //! during development without remembering to rebuild after edits.
@@ -22,14 +22,9 @@
 //! `env!("CARGO_MANIFEST_DIR")`, so `run` works correctly even when invoked
 //! from a directory outside the scripts repository.
 //!
-//! ## `CARGO_TARGET_DIR` in Cursor
-//!
-//! Agent-integrated shells may set `CARGO_TARGET_DIR` to a sandbox cache path.
-//! That diverges from the workspace-relative `target/debug/<name>` paths this
-//! binary uses for staleness checks and exec.  Nested `cargo build` calls
-//! therefore clear `CARGO_TARGET_DIR` when a Cursor agent (or sandbox) layout
-//! is detected — see `should_clear_cargo_target_dir_for_nested_cargo` and
-//! [docs/design/cursor-cargo-target-dir.md](../../../docs/design/cursor-cargo-target-dir.md).
+//! `CARGO_TARGET_DIR` is respected: when set, artifacts are looked up and
+//! built at `$CARGO_TARGET_DIR/debug/<binary>`; otherwise the workspace-
+//! relative `target/debug/<binary>` default is used.
 
 use std::env;
 use std::fs;
@@ -46,23 +41,6 @@ fn main() {
     }
 }
 
-/// Cursor agent terminals often export `CARGO_TARGET_DIR` to a sandbox cache
-/// under `/var/folders/.../cursor-sandbox-cache/...`, which breaks `run`'s
-/// assumption that artifacts live at `<workspace>/target/debug/<binary>`.
-/// When we detect that environment, strip the variable for nested `cargo`
-/// invocations so builds land in the workspace `target/` tree.
-fn should_clear_cargo_target_dir_for_nested_cargo() -> bool {
-    if env::var_os("CURSOR_AGENT").is_some_and(|v| !v.is_empty()) {
-        return true;
-    }
-    if env::var_os("CURSOR_TRACE_ID").is_some_and(|v| !v.is_empty()) {
-        return true;
-    }
-    env::var("CARGO_TARGET_DIR")
-        .ok()
-        .is_some_and(|p| p.contains("cursor-sandbox-cache"))
-}
-
 fn run() -> Result<()> {
     let mut args = env::args().skip(1); // skip argv[0] ("run")
     let binary = args
@@ -72,11 +50,12 @@ fn run() -> Result<()> {
 
     let workspace_root = workspace_root();
 
+    let target_dir = env::var_os("CARGO_TARGET_DIR")
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace_root.join("target"));
     let crate_dir = workspace_root.join("crates").join(&binary);
-    let binary_path = workspace_root
-        .join("target")
-        .join("debug")
-        .join(&binary);
+    let binary_path = target_dir.join("debug").join(&binary);
 
     if crate_dir.is_dir() {
         // Decide whether a rebuild is needed.
@@ -183,12 +162,11 @@ fn visit_source_files(dir: &Path, cb: &mut impl FnMut(&Path)) {
 /// Run `cargo build -p <binary>` inside `workspace_root`, forwarding
 /// stdout and stderr to the terminal.  Fails if the process exits non-zero.
 fn build(workspace_root: &Path, binary: &str) -> Result<()> {
-    let mut cmd = Command::new("cargo");
-    cmd.args(["build", "-p", binary]).current_dir(workspace_root);
-    if should_clear_cargo_target_dir_for_nested_cargo() {
-        cmd.env_remove("CARGO_TARGET_DIR");
-    }
-    let status = cmd.status().context("failed to spawn `cargo build`")?;
+    let status = Command::new("cargo")
+        .args(["build", "-p", binary])
+        .current_dir(workspace_root)
+        .status()
+        .context("failed to spawn `cargo build`")?;
 
     if !status.success() {
         bail!("`cargo build -p {binary}` failed with {status}");
