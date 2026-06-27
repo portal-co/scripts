@@ -8,5 +8,15 @@
 # ready to invoke other workspace binaries (forfiles, retry-forfiles, …).
 _SCRIPTS_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
+# Cursor agent shells often set CARGO_TARGET_DIR to a sandbox cache; workspace
+# scripts expect ./target/debug/run. See docs/design/cursor-cargo-target-dir.md.
+if [ -n "${CURSOR_AGENT:-}" ] || [ -n "${CURSOR_TRACE_ID:-}" ]; then
+  unset CARGO_TARGET_DIR
+else
+  case "${CARGO_TARGET_DIR:-}" in
+    *cursor-sandbox-cache*) unset CARGO_TARGET_DIR ;;
+  esac
+fi
+
 cargo build -p run --manifest-path "$_SCRIPTS_DIR/Cargo.toml" -q
-RUN="${CARGO_TARGET_DIR:-$_SCRIPTS_DIR/target}/debug/run"
+RUN="$_SCRIPTS_DIR/target/debug/run"
