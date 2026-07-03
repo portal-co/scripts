@@ -8,4 +8,7 @@ name = "git-recurse"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow     = { workspace = true }
+clap       = { workspace = true, features = ["env"] }
+repoutils  = { workspace = true }
+serde_json = { workspace = true }
